@@ -1,0 +1,19 @@
+# Ejemplo de despliegue de amarr (port a Python).
+# La imagen se publica en GitHub Container Registry (ghcr.io); sustituye
+# <owner> por tu usuario/organización de GitHub.
+services:
+  amarr:
+    image: ghcr.io/<owner>/amarr:latest
+    container_name: amarr
+    environment:
+      - AMULE_HOST=aMule
+      - AMULE_PORT=4712
+      - AMULE_PASSWORD=secret
+      # Opcionales:
+      # - AMULE_FINISHED_PATH=/finished
+      # - AMARR_PORT=8080
+      # - AMARR_LOG_LEVEL=INFO
+    volumes:
+      - /path/to/amarr/config:/config
+    ports:
+      - 8080:8080

@@ -1,0 +1,5 @@
+# Dependencias de ejecución de amarr (port a Python).
+fastapi>=0.110
+uvicorn[standard]>=0.27
+pydantic>=2.5
+python-multipart>=0.0.9

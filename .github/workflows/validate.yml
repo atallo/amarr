@@ -1,18 +1,20 @@
 name: Validate
 on:
-  push: { }
+  push: {}
+  pull_request: {}
+
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-java@v5
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          java-version: '17'
-          distribution: 'temurin'
-      - name: Validate Gradle wrapper
-        uses: gradle/actions/wrapper-validation@v6
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6
-      - name: Run the Gradle test task
-        run: ./gradlew test
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Run tests
+        run: pytest -q

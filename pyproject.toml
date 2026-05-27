@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "amarr"
+version = "0.0.0"  # Lo gestiona el release automático (ver release.yml).
+description = "Conector que permite usar aMule como cliente de descargas para Sonarr/Radarr (port a Python)."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "amarr (port a Python)" }]
+dependencies = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "pydantic>=2.5",
+    "python-multipart>=0.0.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "httpx>=0.27",  # requerido por fastapi.testclient
+]
+
+[project.scripts]
+amarr = "amarr.app:main"
+
+[tool.setuptools.packages.find]
+include = ["amarr*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

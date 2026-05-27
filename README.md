@@ -1,58 +1,69 @@
-# Amarr - aMule *arr Connector
-![Docker Image Version (latest semver)](https://img.shields.io/docker/v/vexdev/amarr)
-![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/vexdev/amarr/release.yml)
-[![semantic-release: angular](https://img.shields.io/badge/semantic--release-angular-e10079?logo=semantic-release)](https://github.com/semantic-release/semantic-release)
+# Amarr - Conector aMule para *arr (port a Python)
 
+Este conector permite usar **aMule** como cliente de descargas para
+[Sonarr](https://sonarr.tv/) y [Radarr](https://radarr.video/). Funciona
+**emulando un cliente de torrents** (la WebAPI de qBittorrent v2.8.19), de modo
+que Sonarr/Radarr gestionan tus descargas como si fueran torrents, y exponiendo
+además endpoints **Torznab** para la búsqueda.
 
-This connector allows using aMule as a download client for [Sonarr](https://sonarr.tv/)
-and [Radarr](https://radarr.video/).
-It works by emulating a torrent client, so Sonarr and Radarr will manage your downloads as if they were torrents.
+Es una traducción a **Python** del proyecto original escrito en Kotlin. La
+comunicación con aMule usa el protocolo binario **EC (External Connection)**,
+portado igualmente a Python a partir de la librería
+[jaMule](https://github.com/vexdev/jaMule), que sólo soporta aMule **2.3.1** a
+**2.3.3**.
 
-Makes use of [jaMule](https://github.com/vexdev/jaMule) to connect to aMule, which only supports aMule versions **2.3.1** to **2.3.3**.
+## Requisitos previos
 
-Amarr has been especially tested with the latest released version of [Adunanza](https://www.adunanza.net/).
+- [aMule](https://www.amule.org/) versión **2.3.1** a **2.3.3** en marcha y
+  configurado (con la conexión EC habilitada).
+- [Sonarr](https://sonarr.tv/) o [Radarr](https://radarr.video/) en marcha.
 
-## Pre-requisites
+**Amarr no incluye su propia instalación de aMule**: necesitas tener aMule
+funcionando aparte (por ejemplo con la imagen Docker de
+[ngosang](https://github.com/ngosang/docker-amule) o la de Adunanza de
+[m4dfry](https://github.com/m4dfry/amule-adunanza-docker)).
 
-- [aMule](https://www.amule.org/) version **2.3.1** to **2.3.3** running and configured
-- [Sonarr](https://sonarr.tv/) or [Radarr](https://radarr.video/) running and configured
+## Instalación
 
-**Amarr does not come with its own amule installation**, you need to have it running and configured.
-One way to do this is by using the [Amule Docker image from ngosang](https://github.com/ngosang/docker-amule).
-Or the [Adunanza Docker image from m4dfry](https://github.com/m4dfry/amule-adunanza-docker).
-Or again you could run aMule in a VM or in a physical machine.
-
-## Installation
-
-Amarr runs as a docker container. You can find it in [Docker Hub](https://hub.docker.com/r/vexdev/amarr).
-
-It requires the following environment variables:
-
-```
-AMULE_HOST: aMule # The host where aMule is running, for docker containers it's usually the name of the container
-AMULE_PORT: 4712 # The port where aMule is listening with the EC protocol
-AMULE_PASSWORD: secret # The password to connect to aMule
-
-Optional parameters:
-AMULE_FINISHED_PATH: /finished # The directory where aMule will download the finished files
-AMARR_PORT: 8080 # The port where amarr will listen, defaults to 8080
-AMARR_LOG_LEVEL: INFO # The log level of amarr, defaults to INFO
-```
-
-It also requires mounting the following volumes:
+Amarr se ejecuta como contenedor Docker. La imagen se publica en **GitHub
+Container Registry (ghcr.io)**:
 
 ```
-/config # The directory where amarr will store its configuration, must be persistent
+ghcr.io/<owner>/amarr:latest
 ```
 
-The container exposes the port 8080, which is the port where amarr will expose the Torznab server for Sonarr/Radarr.
+(Sustituye `<owner>` por el usuario u organización de GitHub donde esté el
+repositorio.)
 
-### Example docker-compose.yml
+### Variables de entorno
+
+```
+AMULE_HOST: aMule       # Host donde corre aMule (en Docker suele ser el nombre del contenedor)
+AMULE_PORT: 4712        # Puerto EC de aMule
+AMULE_PASSWORD: secret  # Contraseña de conexión a aMule
+
+Opcionales:
+AMULE_FINISHED_PATH: /finished  # Carpeta donde aMule deja los ficheros terminados
+AMARR_PORT: 8080                # Puerto en el que escucha amarr (por defecto 8080)
+AMARR_LOG_LEVEL: INFO           # Nivel de log: DEBUG, INFO, WARN, ERROR (por defecto INFO)
+AMARR_CONFIG_PATH: /config      # Carpeta de configuración persistente (por defecto /config)
+```
+
+### Volúmenes
+
+```
+/config   # Carpeta donde amarr guarda su configuración; debe ser persistente
+```
+
+El contenedor expone el puerto **8080**, donde amarr publica la API qBittorrent
+y el servidor Torznab para Sonarr/Radarr.
+
+### Ejemplo `docker-compose.yml`
 
 ```yaml
 services:
   amarr:
-    image: vexdev/amarr:latest
+    image: ghcr.io/<owner>/amarr:latest
     container_name: amarr
     environment:
       - AMULE_HOST=aMule
@@ -64,64 +75,72 @@ services:
       - 8080:8080
 ```
 
-## Radarr/Sonarr configuration (2 easy steps)
+## Configuración de Radarr/Sonarr (2 pasos)
 
-### 1. Configure amarr as a download client
+### 1. Configurar amarr como cliente de descargas
 
-You will need to add the download client. 
-
-You can do that by adding a new download client of type **qBittorrent** with the following settings:
-
-```
-! Ensure you pressed the "Show advanced settings" button
-Name: Any name you want
-Host: amarr # The host where amarr is running, for docker containers it's usually the name of the container
-Port: 8080 # The port where amarr is listening
-Priority: 50 # This is the lowest possible priority, so Sonarr/Radarr will prefer other download clients
-```
-
-### 2. Configure amarr as a torrent indexer
-
-Amarr provides multiple indexers with different capabilities. 
-Each indexer implements the **Torznab** protocol, so it can be used as a torrent indexer for Sonarr/Radarr.
-
-Add a new **Torznab indexer** with the following settings:
+Añade un nuevo cliente de descargas de tipo **qBittorrent** con estos ajustes
+(pulsa antes "Show advanced settings"):
 
 ```
-! Ensure you pressed the "Show advanced settings" button
-Name: Any name you want
-Url: http://amarr:8080/indexer/<indexer-type>
-Download Client: The name you gave to amarr in the previous step
+Name: el que quieras
+Host: amarr      # Host donde corre amarr (en Docker, el nombre del contenedor)
+Port: 8080       # Puerto donde escucha amarr
+Priority: 50     # Prioridad más baja posible para que se prefieran otros clientes
 ```
 
-**Note:** You need to configure Sonarr/Radarr to prefer amarr as a download client for any indexers we created before.
+### 2. Configurar amarr como indexador Torznab
 
-**Note:** `<indexer-type>` is [one of the indexers supported by amarr](#indexers).
+Añade un nuevo **indexador Torznab** con estos ajustes:
 
-**You will have to do this for every indexer you want to use with amarr.**
+```
+Name: el que quieras
+Url: http://amarr:8080/indexer/amule
+Download Client: el nombre que diste a amarr en el paso anterior
+```
 
-## Indexers
+## Indexadores
 
 ### `amule`
 
-This indexer will search for files in aMule through the kad/eD2k network.
+Busca ficheros en aMule a través de la red kad/eD2k. Es lento y poco fiable, y
+los ficheros de esa red no están bien revisados (puedes acabar descargando
+ficheros falsos). No requiere configuración adicional.
 
-It is very slow and not very reliable. Additionally, files on the kad/eD2k network are not well reviewed, so you may end
-up downloading fake files.
+> **Nota:** el indexador `ddunlimitednet` del proyecto original **no** se ha
+> incluido en este port a Python.
 
-Does not require any additional configuration.
+## Desarrollo
 
-### `ddunlimitednet` - BETA!!
+Requiere Python 3.11 o superior.
 
-_⚠️⚠️⚠️ This indexer is still in beta. It may not work as expected. ⚠️⚠️⚠️_
+```bash
+# Instala las dependencias (incluidas las de desarrollo)
+pip install -e ".[dev]"
 
-ddunlimited.net is very restrictive with the number of searches you can perform, so this indexer is subject to rate limits.
+# Ejecuta las pruebas
+pytest
 
-This indexer will search for files in [ddunlimited.net](https://ddunlimited.net/).
-
-Requires the following environment variables to be set:
-
+# Arranca el servidor en local (lee la configuración del entorno)
+AMULE_HOST=localhost AMULE_PORT=4712 AMULE_PASSWORD=secret python -m amarr.app
 ```
-DDUNLIMITEDNET_USERNAME: username # The username to connect to ddunlimited.net
-DDUNLIMITEDNET_PASSWORD: password # The password to connect to ddunlimited.net
-```
+
+## Notas de arquitectura (port a Python)
+
+- **Servidor web:** se usa **FastAPI + uvicorn** en lugar de Ktor. La API
+  qBittorrent responde en JSON/texto y la Torznab en XML.
+- **Cliente EC síncrono:** el protocolo EC se ha portado de forma **síncrona**
+  (sockets + `struct` + `hashlib` + `zlib`), protegido con un cerrojo. Los
+  handlers de FastAPI que tocan aMule son funciones `def` (no `async`), así que
+  Starlette las ejecuta en su *threadpool* y no bloquean el bucle de eventos.
+- **Modelos:** se usa **pydantic v2** (equivalente a las `data class`
+  serializables del original).
+- **Compatibilidad de protocolo:** la implementación se ha validado byte a byte
+  contra los vectores de prueba de jaMule (autenticación, búsqueda, estado y
+  hash de contraseña).
+- **Publicación:** la imagen se publica en **ghcr.io** mediante GitHub Actions
+  (`.github/workflows/release.yml`), usando el `GITHUB_TOKEN` integrado.
+
+## Licencia
+
+MIT.
