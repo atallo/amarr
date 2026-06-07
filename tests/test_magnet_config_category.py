@@ -80,6 +80,28 @@ def test_delete_category(tmp_path):
     assert store.get_category("abc") is None
 
 
+def test_delete_then_store_survives_reload(tmp_path):
+    """Regresión: borrar y volver a añadir no debe corromper el fichero.
+
+    El delete reescribía sin salto de línea final, así que el siguiente store
+    se pegaba a la última entrada; tras reiniciar (caché fría) una categoría se
+    leía mal y otra se perdía.
+    """
+    store = FileCategoryStore(str(tmp_path))
+    store.store("cat1", "AAAA")
+    store.store("cat2", "BBBB")
+    store.store("cat3", "CCCC")
+    store.delete("BBBB")
+    store.store("cat4", "DDDD")
+
+    # Instancia nueva => caché vacía => se lee del disco.
+    fresh = FileCategoryStore(str(tmp_path))
+    assert fresh.get_category("AAAA") == "cat1"
+    assert fresh.get_category("CCCC") == "cat3"
+    assert fresh.get_category("DDDD") == "cat4"
+    assert fresh.get_category("BBBB") is None
+
+
 def test_rejects_tab_characters(tmp_path):
     store = FileCategoryStore(str(tmp_path))
     with pytest.raises(ValueError):

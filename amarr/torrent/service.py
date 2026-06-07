@@ -120,7 +120,7 @@ class TorrentService:
             total_size=dl.size_full,
             save_path=self._finished_path,
             downloaded=dl.size_done,
-            progress=dl.size_done / dl.size_full,
+            progress=self._compute_progress(dl.size_done, dl.size_full),
             priority=dl.down_prio,
             state=state,
             category=category,
@@ -135,6 +135,20 @@ class TorrentService:
         if speed == 0:
             return _NO_ETA
         return min(remaining // speed, _NO_ETA)
+
+    @staticmethod
+    def _compute_progress(
+        size_done: Optional[int], size_full: Optional[int]
+    ) -> float:
+        """Progreso (0..1) protegido frente a tamaño nulo o cero.
+
+        aMule normalmente envía ambos tamaños, pero un part-file recién creado
+        puede llegar con ``size_full`` a 0 o ausente; evitamos la división por
+        cero (y el ``TypeError`` si fuese ``None``).
+        """
+        if not size_full or not size_done:
+            return 0.0
+        return size_done / size_full
 
     # --- categorías ---------------------------------------------------------
 

@@ -96,9 +96,14 @@ class FileCategoryStore(CategoryStore):
             if target is None:
                 return
             remaining = [ln for ln in lines if ln != target]
-            # Kotlin usa joinToString("\n") (sin salto final).
+            # Cada línea termina en "\n", igual que los append de store()/
+            # add_category(). El original Kotlin usaba joinToString("\n") (sin
+            # salto final), lo que corrompía el fichero: tras un delete la
+            # última línea quedaba sin "\n" y el siguiente store se pegaba a
+            # ella, fusionando dos entradas al releer con la caché fría.
             with open(self._hashes_path, "w", encoding="utf-8") as fh:
-                fh.write("\n".join(remaining))
+                for line in remaining:
+                    fh.write(f"{line}\n")
             self._hashes_cache.pop(hash, None)
 
     # --- catálogo de categorías --------------------------------------------

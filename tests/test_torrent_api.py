@@ -150,6 +150,26 @@ def test_get_info_serializes_ratio_and_seeding_time():
     assert torrent["seeding_time"] == 1
 
 
+def test_get_info_handles_zero_size_without_crashing():
+    """Regresión: un part-file con size_full=0 no debe provocar un 500.
+
+    Antes se calculaba progress = size_done / size_full sin proteger el cero.
+    """
+    amule = FakeAmuleClient()
+    amule.download_queue = [
+        make_part_file(
+            file_hash_hex_string=_MAGNET.amule_hex_hash(),
+            file_name=_MAGNET.name,
+            size_full=0,
+            size_done=0,
+        )
+    ]
+    c = _client(amule, MemoryCategoryStore())
+    r = c.get("/api/v2/torrents/info")
+    assert r.status_code == 200
+    assert r.json()[0]["progress"] == 0.0
+
+
 def test_get_properties():
     amule = FakeAmuleClient()
     amule.download_queue = [
