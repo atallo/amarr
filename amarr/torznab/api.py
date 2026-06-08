@@ -13,7 +13,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Request
 from fastapi.responses import PlainTextResponse, Response as FastAPIResponse
 
-from .indexer.amule import AmuleIndexer
+from .indexer.aggregate import AggregateIndexer
 from .indexer.base import Indexer, ThrottledException, UnauthorizedException
 from .models import Channel, Feed, Response as FeedResponse
 
@@ -27,7 +27,13 @@ class _SearchMode(Enum):
     TV = "tv"
 
 
-def build_torznab_router(amule_indexer: AmuleIndexer) -> APIRouter:
+def build_torznab_router(indexers: dict[str, Indexer]) -> APIRouter:
+    """Monta un endpoint Torznab por motor activo, más ``/indexer/all`` (que
+    agrega todos los activos) y la ruta heredada ``/api``.
+
+    ``indexers`` mapea el nombre del motor (``amule``/``ed2k``/``kad``) a su
+    :class:`Indexer`.
+    """
     router = APIRouter()
 
     def handle(request: Request, indexer: Indexer) -> FastAPIResponse:
@@ -49,14 +55,26 @@ def build_torznab_router(amule_indexer: AmuleIndexer) -> APIRouter:
             return _perform_search(request, indexer, _SearchMode.DEFAULT)
         raise ValueError(f"Unknown action: {action}")
 
-    # Ruta heredada (legacy) y ruta específica del indexador amule.
-    @router.get("/api")
-    def api(request: Request) -> FastAPIResponse:
-        return handle(request, amule_indexer)
+    def make_endpoint(indexer: Indexer):
+        # Cierre por indexer (evita el late-binding de la variable del bucle).
+        def endpoint(request: Request) -> FastAPIResponse:
+            return handle(request, indexer)
 
-    @router.get("/indexer/amule/api")
-    def amule_api(request: Request) -> FastAPIResponse:
-        return handle(request, amule_indexer)
+        return endpoint
+
+    # Un endpoint por motor activo: /indexer/<nombre>/api
+    for name, indexer in indexers.items():
+        router.add_api_route(
+            f"/indexer/{name}/api", make_endpoint(indexer), methods=["GET"]
+        )
+
+    # Endpoint agregador: /indexer/all/api (combina los motores activos).
+    aggregate = AggregateIndexer(list(indexers.values()))
+    router.add_api_route("/indexer/all/api", make_endpoint(aggregate), methods=["GET"])
+
+    # Ruta heredada: /api -> amule si está activo, si no el agregador.
+    legacy = indexers.get("amule", aggregate)
+    router.add_api_route("/api", make_endpoint(legacy), methods=["GET"])
 
     return router
 

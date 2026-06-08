@@ -47,6 +47,13 @@ AMULE_FINISHED_PATH: /finished  # Carpeta donde aMule deja los ficheros terminad
 AMARR_PORT: 8080                # Puerto en el que escucha amarr (por defecto 8080)
 AMARR_LOG_LEVEL: INFO           # Nivel de log: DEBUG, INFO, WARN, ERROR (por defecto INFO)
 AMARR_CONFIG_PATH: /config      # Carpeta de configuración persistente (por defecto /config)
+
+Motores de búsqueda (ver "Indexadores y motores de búsqueda"):
+AMARR_SEARCH_BACKENDS: amule          # Motores activos, lista por comas: amule,ed2k,kad (por defecto amule)
+AMARR_ED2K_SERVER: 45.82.80.155:5687  # Servidor eD2k para el motor "ed2k" (host:puerto)
+AMARR_KAD_NODES: /config/nodes.dat    # nodes.dat para "kad" (por defecto: /config/nodes.dat o el empaquetado)
+AMARR_KAD_IP_ORDER: be                # Orden de bytes de IP en nodes.dat: be o le (por defecto be)
+AMARR_KAD_WITH_SOURCES: false         # Kad: contar fuentes reales por fichero (lento; por defecto false)
 ```
 
 ### Volúmenes
@@ -95,18 +102,40 @@ Añade un nuevo **indexador Torznab** con estos ajustes:
 
 ```
 Name: el que quieras
-Url: http://amarr:8080/indexer/amule
+Url: http://amarr:8080/indexer/amule   # o /indexer/ed2k, /indexer/kad, /indexer/all (ver Indexadores)
 Download Client: el nombre que diste a amarr en el paso anterior
 ```
 
-## Indexadores
+## Indexadores y motores de búsqueda
 
-### `amule`
+amarr puede buscar con tres motores, activables con `AMARR_SEARCH_BACKENDS`
+(lista por comas, al menos uno):
 
-Busca ficheros en aMule a través de la red kad/eD2k. Es lento y poco fiable, y
-los ficheros de esa red no están bien revisados (puedes acabar descargando
-ficheros falsos). No requiere configuración adicional.
+- **`amule`** — Busca a través de un **aMule externo** (protocolo EC), como hasta
+  ahora. Requiere aMule en marcha.
+- **`ed2k`** — Busca directamente en un **servidor eD2k**, implementado por amarr
+  (100% Python, sin aMule para la búsqueda). Servidor configurable con
+  `AMARR_ED2K_SERVER`.
+- **`kad`** — Busca en la **red Kad** (serverless), implementado por amarr. Usa un
+  `nodes.dat` (`AMARR_KAD_NODES`; se incluye uno por defecto).
 
+Cada motor activo expone su propio endpoint Torznab, y además hay un endpoint
+`all` que **agrupa** los resultados de todos los activos:
+
+```
+http://amarr:8080/indexer/amule    # solo aMule
+http://amarr:8080/indexer/ed2k     # solo servidor eD2k
+http://amarr:8080/indexer/kad      # solo Kad
+http://amarr:8080/indexer/all      # todos los motores activos, combinados
+```
+
+En Sonarr/Radarr usa como URL del indexador la del motor que quieras (o `all`).
+Sea cual sea el motor de búsqueda, **la descarga siempre la realiza aMule**, así
+que aMule debe seguir configurado y en marcha.
+
+> Los resultados de la red eD2k/Kad no están bien revisados (puedes acabar
+> descargando ficheros falsos). El motor `kad` puede tardar bastante por consulta.
+>
 > **Nota:** el indexador `ddunlimitednet` del proyecto original **no** se ha
 > incluido en este port a Python.
 

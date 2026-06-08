@@ -14,7 +14,7 @@ def _client(amule=None):
     amule = amule or FakeAmuleClient()
     indexer = AmuleIndexer(amule)
     app = FastAPI()
-    app.include_router(build_torznab_router(indexer))
+    app.include_router(build_torznab_router({"amule": indexer}))
     return TestClient(app, raise_server_exceptions=False), amule
 
 

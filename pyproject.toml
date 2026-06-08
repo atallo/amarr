@@ -29,5 +29,9 @@ amarr = "amarr.app:main"
 [tool.setuptools.packages.find]
 include = ["amarr*"]
 
+[tool.setuptools.package-data]
+# nodes.dat empaquetado para el motor de búsqueda Kad.
+"amarr.ed2k" = ["data/*.dat"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

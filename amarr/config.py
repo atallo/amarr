@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Mapping, Optional
+from typing import List, Mapping, Optional
 
 
 def required_env(name: str, env: Optional[Mapping[str, str]] = None) -> str:
@@ -58,3 +58,39 @@ def set_log_level(log_level: str) -> None:
     if log_level not in _LEVELS:
         raise ValueError(f"Unknown log level: {log_level}")
     logging.getLogger("amarr").setLevel(_LEVELS[log_level])
+
+
+# --- motores de búsqueda ------------------------------------------------------
+
+#: Motores de búsqueda válidos en orden canónico.
+SEARCH_BACKENDS = ("amule", "ed2k", "kad")
+#: Sinónimos aceptados -> nombre canónico.
+_BACKEND_ALIASES = {"emule": "amule"}
+
+
+def search_backends(env: Optional[Mapping[str, str]] = None) -> List[str]:
+    """Motores de búsqueda activos (``AMARR_SEARCH_BACKENDS``, lista por comas).
+
+    Acepta ``amule`` (a través de un aMule externo), ``ed2k`` (servidor eD2k) y
+    ``kad`` (red Kad); ``emule`` es alias de ``amule``. Por defecto ``amule``
+    (mismo comportamiento que antes). Devuelve la lista canónica sin duplicados y
+    en orden de aparición. Lanza si algún valor es inválido o la lista es vacía.
+    """
+    env = env if env is not None else os.environ
+    raw = env.get("AMARR_SEARCH_BACKENDS", "amule")
+    result: List[str] = []
+    for token in raw.split(","):
+        name = token.strip().lower()
+        if not name:
+            continue
+        name = _BACKEND_ALIASES.get(name, name)
+        if name not in SEARCH_BACKENDS:
+            raise ValueError(
+                f"Unknown search backend: {token.strip()!r} "
+                f"(valid: {', '.join(SEARCH_BACKENDS)})"
+            )
+        if name not in result:
+            result.append(name)
+    if not result:
+        raise ValueError("AMARR_SEARCH_BACKENDS must list at least one backend")
+    return result
