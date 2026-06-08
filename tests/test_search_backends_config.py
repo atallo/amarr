@@ -1,7 +1,9 @@
-"""Tests de ``config.search_backends`` (selección de motores de búsqueda)."""
+"""Tests de configuración: selección de motores y nivel de log."""
+import logging
+
 import pytest
 
-from amarr.config import search_backends
+from amarr.config import search_backends, set_log_level
 
 
 def test_default_is_amule():
@@ -32,3 +34,21 @@ def test_invalid_backend_raises():
 def test_empty_list_raises():
     with pytest.raises(ValueError):
         search_backends({"AMARR_SEARCH_BACKENDS": " , "})
+
+
+# --- set_log_level ------------------------------------------------------------
+
+
+def test_set_log_level_configures_amarr_and_ed2k_loggers():
+    try:
+        set_log_level("DEBUG")
+        assert logging.getLogger("amarr").level == logging.DEBUG
+        # La librería de búsqueda ed2k/kad también, para ver sus trazas.
+        assert logging.getLogger("ed2k").level == logging.DEBUG
+    finally:
+        set_log_level("INFO")  # restaura para no afectar a otros tests
+
+
+def test_set_log_level_rejects_unknown():
+    with pytest.raises(ValueError):
+        set_log_level("VERBOSE")

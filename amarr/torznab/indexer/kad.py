@@ -45,6 +45,11 @@ class KadIndexer(Indexer):
             if self._kad is None:
                 # KadSearch puede lanzar FileNotFoundError/ValueError al cargar
                 # nodes.dat; lo captura el pipeline de Indexer (feed vacío).
+                self._log.debug("Kad: cargando nodes.dat de %s", self._nodes_path)
                 self._kad = KadSearch(self._nodes_path, ip_order=self._ip_order)
+            self._log.debug(
+                "Kad: buscando %r (with_sources=%s)", query, self._with_sources
+            )
             results = self._kad.search(query, with_sources=self._with_sources)
+        self._log.debug("Kad: %d resultados crudos de la red", len(results))
         return to_search_files(results)

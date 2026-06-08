@@ -1,22 +1,32 @@
-"""Almacén de categorías y su relación con los hashes de fichero.
+"""Almacén de categorías en SQLite y su relación con los hashes de fichero.
 
-Traducción de ``amarr/category/CategoryStore.kt`` y ``FileCategoryStore.kt``.
-Persiste dos ficheros TSV en el directorio de configuración:
+Reemplaza la antigua persistencia en ficheros TSV (``categories.tsv`` /
+``hashes.tsv``) por una base de datos **SQLite** (``amarr.db``) en el directorio
+de configuración. Mantiene la interfaz :class:`CategoryStore`, así que el resto
+de la app no cambia.
 
-* ``categories.tsv``: ``nombre<TAB>savePath`` por línea.
-* ``hashes.tsv``:      ``hash<TAB>categoría`` por línea.
+Esquema:
 
-El acceso está sincronizado con cerrojos (equivale a los ``synchronized`` de
-Kotlin) y se cachea en memoria.
+* ``categories(name PRIMARY KEY, save_path)``      — catálogo de categorías.
+* ``file_categories(hash PRIMARY KEY, category)``  — asignación fichero→categoría.
+
+Al construirse, si encuentra ficheros TSV de versiones anteriores los **aparta**
+renombrándolos a ``<nombre>.bak`` (no se importan: se arranca con la BD vacía).
+El acceso es seguro entre hilos (cerrojo + conexión compartida con
+``check_same_thread=False``), apto para el threadpool de FastAPI.
 """
 from __future__ import annotations
 
+import logging
 import os
+import sqlite3
 import threading
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Set
+from typing import Optional, Set
 
 from ..torrent.models import Category
+
+_log = logging.getLogger("amarr.category")
 
 
 class CategoryStore(ABC):
@@ -43,89 +53,78 @@ class CategoryStore(ABC):
         ...
 
 
-_CATEGORIES_FILE = "categories.tsv"
-_HASHES_FILE = "hashes.tsv"
+_DB_FILE = "amarr.db"
+# Ficheros TSV de versiones anteriores; se apartan a "<nombre>.bak".
+_LEGACY_TSV = ("categories.tsv", "hashes.tsv")
 
 
-class FileCategoryStore(CategoryStore):
-    """Implementación respaldada por ficheros TSV, segura entre hilos."""
+class SqliteCategoryStore(CategoryStore):
+    """Implementación respaldada por SQLite, segura entre hilos."""
 
     def __init__(self, store_path: str) -> None:
-        self._hashes_cache: Dict[str, str] = {}
-        self._categories_cache: Optional[Set[Category]] = None
-        self._categories_path = os.path.abspath(
-            os.path.join(store_path, _CATEGORIES_FILE)
-        )
-        self._hashes_path = os.path.abspath(os.path.join(store_path, _HASHES_FILE))
-        # Dos cerrojos independientes, uno por fichero, como en Kotlin.
-        self._hashes_lock = threading.RLock()
-        self._categories_lock = threading.RLock()
+        os.makedirs(store_path, exist_ok=True)
+        self._db_path = os.path.abspath(os.path.join(store_path, _DB_FILE))
+        self._lock = threading.RLock()
+        self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
+        self._init_schema()
+        self._archive_legacy_tsv(store_path)
+
+    def _init_schema(self) -> None:
+        with self._conn:
+            self._conn.execute(
+                "CREATE TABLE IF NOT EXISTS categories ("
+                "name TEXT PRIMARY KEY, save_path TEXT NOT NULL DEFAULT '')"
+            )
+            self._conn.execute(
+                "CREATE TABLE IF NOT EXISTS file_categories ("
+                "hash TEXT PRIMARY KEY, category TEXT NOT NULL)"
+            )
+
+    @staticmethod
+    def _archive_legacy_tsv(store_path: str) -> None:
+        # No se importan los datos (se arranca con la BD vacía); solo se apartan
+        # a "<nombre>.bak" como respaldo.
+        for name in _LEGACY_TSV:
+            path = os.path.join(store_path, name)
+            if os.path.exists(path):
+                try:
+                    os.replace(path, path + ".bak")
+                    _log.info("TSV heredado apartado: %s -> %s.bak", name, name)
+                except OSError:
+                    _log.warning("No se pudo apartar el TSV heredado %s", path)
 
     # --- relación hash -> categoría ----------------------------------------
 
     def store(self, category: str, hash: str) -> None:
-        with self._hashes_lock:
-            if "\t" in category or "\t" in hash:
-                raise ValueError("Category or hash contains tab character")
-            os.makedirs(os.path.dirname(self._hashes_path), exist_ok=True)
-            with open(self._hashes_path, "a", encoding="utf-8") as fh:
-                fh.write(f"{hash}\t{category}\n")
-            self._hashes_cache[hash] = category
+        with self._lock, self._conn:
+            self._conn.execute(
+                "INSERT OR REPLACE INTO file_categories(hash, category) VALUES(?, ?)",
+                (hash, category),
+            )
 
     def get_category(self, hash: str) -> Optional[str]:
-        with self._hashes_lock:
-            if hash in self._hashes_cache:
-                return self._hashes_cache[hash]
-            if not os.path.exists(self._hashes_path):
-                return None
-            with open(self._hashes_path, encoding="utf-8") as fh:
-                for line in fh.read().splitlines():
-                    if line.split("\t")[0] == hash:
-                        category = line.split("\t")[1]
-                        self._hashes_cache[hash] = category
-                        return category
-            return None
+        with self._lock:
+            cur = self._conn.execute(
+                "SELECT category FROM file_categories WHERE hash = ?", (hash,)
+            )
+            row = cur.fetchone()
+        return row[0] if row is not None else None
 
     def delete(self, hash: str) -> None:
-        with self._hashes_lock:
-            if not os.path.exists(self._hashes_path):
-                return
-            with open(self._hashes_path, encoding="utf-8") as fh:
-                lines = fh.read().splitlines()
-            target = next((ln for ln in lines if ln.split("\t")[0] == hash), None)
-            if target is None:
-                return
-            remaining = [ln for ln in lines if ln != target]
-            # Cada línea termina en "\n", igual que los append de store()/
-            # add_category(). El original Kotlin usaba joinToString("\n") (sin
-            # salto final), lo que corrompía el fichero: tras un delete la
-            # última línea quedaba sin "\n" y el siguiente store se pegaba a
-            # ella, fusionando dos entradas al releer con la caché fría.
-            with open(self._hashes_path, "w", encoding="utf-8") as fh:
-                for line in remaining:
-                    fh.write(f"{line}\n")
-            self._hashes_cache.pop(hash, None)
+        with self._lock, self._conn:
+            self._conn.execute("DELETE FROM file_categories WHERE hash = ?", (hash,))
 
     # --- catálogo de categorías --------------------------------------------
 
     def add_category(self, category: Category) -> None:
-        with self._categories_lock:
-            if self._categories_cache is not None:
-                self._categories_cache.add(category)
-            os.makedirs(os.path.dirname(self._categories_path), exist_ok=True)
-            with open(self._categories_path, "a", encoding="utf-8") as fh:
-                fh.write(f"{category.name}\t{category.save_path}\n")
+        with self._lock, self._conn:
+            self._conn.execute(
+                "INSERT OR REPLACE INTO categories(name, save_path) VALUES(?, ?)",
+                (category.name, category.save_path),
+            )
 
     def get_categories(self) -> Set[Category]:
-        with self._categories_lock:
-            if self._categories_cache is not None:
-                return self._categories_cache
-            if not os.path.exists(self._categories_path):
-                return set()
-            categories: Set[Category] = set()
-            with open(self._categories_path, encoding="utf-8") as fh:
-                for line in fh.read().splitlines():
-                    split = line.split("\t")
-                    categories.add(Category(split[0], split[1]))
-            self._categories_cache = categories
-            return self._categories_cache
+        with self._lock:
+            cur = self._conn.execute("SELECT name, save_path FROM categories")
+            rows = cur.fetchall()
+        return {Category(name, save_path) for name, save_path in rows}

@@ -3,6 +3,8 @@
 Se inyecta un ``search_fn`` que devuelve ``SearchResult`` de la librería ``ed2k``,
 de modo que no se toca la red.
 """
+import logging
+
 from amarr.ed2k import SearchResult
 from amarr.magnet import MagnetLink
 from amarr.torznab.indexer.ed2k_server import Ed2kServerIndexer
@@ -70,3 +72,11 @@ def test_kad_value_error_returns_empty_feed():
     feed = KadIndexer(nodes_path="x", search_fn=boom).search("x", 0, 100, [])
     assert feed.channel.response.total == 0
     assert feed.channel.item == []
+
+
+def test_search_logs_raw_and_relevant_counts_in_debug(caplog):
+    ix = Ed2kServerIndexer(search_fn=lambda q: [_sr("a.mkv"), _sr("b.nfo")])
+    with caplog.at_level(logging.DEBUG, logger="amarr.torznab.ed2k"):
+        ix.search("x", 0, 100, [])
+    messages = " ".join(r.getMessage() for r in caplog.records)
+    assert "crudos" in messages  # traza de diagnóstico del modo DEBUG

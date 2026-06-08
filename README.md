@@ -59,8 +59,13 @@ AMARR_KAD_WITH_SOURCES: false         # Kad: contar fuentes reales por fichero (
 ### Volúmenes
 
 ```
-/config   # Carpeta donde amarr guarda su configuración; debe ser persistente
+/config   # Persistente. Guarda la base de datos SQLite (amarr.db) con las
+          # categorías y la asignación fichero→categoría.
 ```
+
+> En versiones anteriores amarr usaba ficheros `categories.tsv`/`hashes.tsv`. Al
+> arrancar con esta versión, esos ficheros se renombran a `*.tsv.bak` (no se
+> importan; la base de datos arranca vacía).
 
 El contenedor expone el puerto **8080**, donde amarr publica la API qBittorrent
 y el servidor Torznab para Sonarr/Radarr.
@@ -138,6 +143,27 @@ que aMule debe seguir configurado y en marcha.
 >
 > **Nota:** el indexador `ddunlimitednet` del proyecto original **no** se ha
 > incluido en este port a Python.
+
+## Depuración
+
+Si una búsqueda no devuelve resultados, activa el modo **DEBUG** y repítela:
+
+```
+AMARR_LOG_LEVEL: DEBUG
+```
+
+En DEBUG, además de los logs de amarr, se incluyen:
+
+- Las trazas internas de los motores eD2k/Kad (loggers `ed2k.*`): conexión y
+  login al servidor eD2k, bootstrap y rondas de Kad, paquetes enviados/recibidos.
+- La consulta tras normalizarla y, por motor, cuántos resultados **crudos**
+  llegan y cuántos quedan **tras el filtro de vídeo**. Esto distingue el origen
+  del problema: si llegan crudos pero 0 relevantes, es el filtro de vídeo; si
+  llegan 0 crudos, es el motor/servidor (p. ej. servidor eD2k caído, `nodes.dat`
+  obsoleto o aMule sin conexión a la red).
+- El *traceback* completo de los errores capturados.
+
+Los logs salen por la salida estándar; en Docker, `docker logs -f amarr`.
 
 ## Desarrollo
 

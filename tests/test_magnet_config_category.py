@@ -1,9 +1,9 @@
-"""Tests de MagnetLink, validación de puerto y almacén de categorías."""
+"""Tests de MagnetLink, validación de puerto y almacén de categorías (SQLite)."""
 import os
 
 import pytest
 
-from amarr.category.store import FileCategoryStore
+from amarr.category.store import SqliteCategoryStore
 from amarr.config import amarr_port
 from amarr.magnet import AMARR_TRACKER, MagnetLink
 from amarr.torrent.models import Category
@@ -56,60 +56,63 @@ def test_port_rejects_out_of_range():
         amarr_port({"AMARR_PORT": "70000"})
 
 
-# --- FileCategoryStore --------------------------------------------------------
+# --- SqliteCategoryStore ------------------------------------------------------
 
 
 def test_store_and_get_category(tmp_path):
-    store = FileCategoryStore(str(tmp_path))
+    store = SqliteCategoryStore(str(tmp_path))
     store.store("movies", "abc123")
     assert store.get_category("abc123") == "movies"
 
 
-def test_get_category_reads_from_disk(tmp_path):
-    store = FileCategoryStore(str(tmp_path))
-    store.store("tv", "deadbeef")
-    # Una instancia nueva (caché vacía) debe leer del fichero.
-    fresh = FileCategoryStore(str(tmp_path))
+def test_creates_db_file(tmp_path):
+    SqliteCategoryStore(str(tmp_path))
+    assert (tmp_path / "amarr.db").exists()
+
+
+def test_get_category_persists_across_instances(tmp_path):
+    SqliteCategoryStore(str(tmp_path)).store("tv", "deadbeef")
+    # Una instancia nueva (misma BD en disco) debe ver el dato.
+    fresh = SqliteCategoryStore(str(tmp_path))
     assert fresh.get_category("deadbeef") == "tv"
 
 
+def test_get_category_unknown_returns_none(tmp_path):
+    assert SqliteCategoryStore(str(tmp_path)).get_category("nope") is None
+
+
 def test_delete_category(tmp_path):
-    store = FileCategoryStore(str(tmp_path))
+    store = SqliteCategoryStore(str(tmp_path))
     store.store("movies", "abc")
     store.delete("abc")
     assert store.get_category("abc") is None
 
 
-def test_delete_then_store_survives_reload(tmp_path):
-    """Regresión: borrar y volver a añadir no debe corromper el fichero.
-
-    El delete reescribía sin salto de línea final, así que el siguiente store
-    se pegaba a la última entrada; tras reiniciar (caché fría) una categoría se
-    leía mal y otra se perdía.
-    """
-    store = FileCategoryStore(str(tmp_path))
-    store.store("cat1", "AAAA")
-    store.store("cat2", "BBBB")
-    store.store("cat3", "CCCC")
-    store.delete("BBBB")
-    store.store("cat4", "DDDD")
-
-    # Instancia nueva => caché vacía => se lee del disco.
-    fresh = FileCategoryStore(str(tmp_path))
-    assert fresh.get_category("AAAA") == "cat1"
-    assert fresh.get_category("CCCC") == "cat3"
-    assert fresh.get_category("DDDD") == "cat4"
-    assert fresh.get_category("BBBB") is None
-
-
-def test_rejects_tab_characters(tmp_path):
-    store = FileCategoryStore(str(tmp_path))
-    with pytest.raises(ValueError):
-        store.store("bad\tname", "hash")
+def test_store_upserts_same_hash(tmp_path):
+    store = SqliteCategoryStore(str(tmp_path))
+    store.store("a", "h1")
+    store.store("b", "h1")  # mismo hash -> reemplaza
+    assert store.get_category("h1") == "b"
 
 
 def test_add_and_get_categories(tmp_path):
-    store = FileCategoryStore(str(tmp_path))
+    store = SqliteCategoryStore(str(tmp_path))
     store.add_category(Category("movies", "/movies"))
-    cats = store.get_categories()
-    assert Category("movies", "/movies") in cats
+    assert Category("movies", "/movies") in store.get_categories()
+
+
+def test_legacy_tsv_archived_not_imported(tmp_path):
+    # Instalación previa con TSV: al arrancar con SQLite se aparta sin importar.
+    (tmp_path / "categories.tsv").write_text("movies\t/movies\n", encoding="utf-8")
+    (tmp_path / "hashes.tsv").write_text("abc\tmovies\n", encoding="utf-8")
+
+    store = SqliteCategoryStore(str(tmp_path))
+
+    # Datos NO importados (se empieza con la BD vacía).
+    assert store.get_category("abc") is None
+    assert store.get_categories() == set()
+    # Los .tsv se apartan a .bak (respaldo).
+    assert not (tmp_path / "categories.tsv").exists()
+    assert not (tmp_path / "hashes.tsv").exists()
+    assert (tmp_path / "categories.tsv.bak").exists()
+    assert (tmp_path / "hashes.tsv.bak").exists()

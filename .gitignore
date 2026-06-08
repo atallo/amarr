@@ -8,3 +8,8 @@ build/
 dist/
 .idea/
 .vscode/
+
+# Base de datos SQLite local (se genera en /config en ejecución).
+*.db
+*.db-wal
+*.db-shm

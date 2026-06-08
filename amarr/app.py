@@ -15,7 +15,7 @@ from fastapi.responses import PlainTextResponse
 
 from . import ed2k as _ed2k_pkg
 from .amule.debug_api import build_debug_router
-from .category.store import CategoryStore, FileCategoryStore
+from .category.store import CategoryStore, SqliteCategoryStore
 from .config import (
     amarr_port,
     optional_env,
@@ -111,7 +111,7 @@ def build_app_from_env() -> FastAPI:
     """Construye la app leyendo toda la configuración del entorno."""
     set_log_level(optional_env("AMARR_LOG_LEVEL", "INFO"))
     amule_client = build_client(_log)
-    category_store = FileCategoryStore(optional_env("AMARR_CONFIG_PATH", "/config"))
+    category_store = SqliteCategoryStore(optional_env("AMARR_CONFIG_PATH", "/config"))
     finished_path = optional_env("AMULE_FINISHED_PATH", "/finished")
     indexers = build_indexers(amule_client)
     return create_app(amule_client, category_store, finished_path, indexers)

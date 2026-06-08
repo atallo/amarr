@@ -70,12 +70,25 @@ class Indexer(ABC):
             self._log.debug("Empty query, returning empty response")
             return _empty_query_response()
         clean_query = self._normalize_search_query(query)
+        self._log.debug("Consulta normalizada: %r -> %r", query, clean_query)
         try:
             results = self._raw_search(clean_query)
         except _SEARCH_ERRORS as exc:
-            self._log.warning("Search failed (%s): %s", type(exc).__name__, exc)
+            # En DEBUG se incluye el traceback completo para depurar.
+            self._log.warning(
+                "La búsqueda falló (%s): %s",
+                type(exc).__name__,
+                exc,
+                exc_info=self._log.isEnabledFor(logging.DEBUG),
+            )
             return self._build_feed([], offset, limit)
         relevant = [f for f in results if self._is_relevant_video_result(f)]
+        self._log.debug(
+            "Resultados de %r: %d crudos, %d relevantes tras el filtro de vídeo",
+            clean_query,
+            len(results),
+            len(relevant),
+        )
         return self._build_feed(relevant, offset, limit)
 
     def capabilities(self) -> Caps:

@@ -38,5 +38,7 @@ class Ed2kServerIndexer(Indexer):
         if self._search_fn is not None:
             results = self._search_fn(query)
         else:
+            self._log.debug("eD2k: buscando %r en el servidor %s", query, self._server)
             results = ServerSearch(self._server, timeout=self._timeout).search(query)
+        self._log.debug("eD2k: %d resultados crudos del servidor", len(results))
         return to_search_files(results)

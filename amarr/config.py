@@ -51,13 +51,18 @@ _LEVELS = {
 
 
 def set_log_level(log_level: str) -> None:
-    """Configura el nivel del logger raíz de amarr.
+    """Configura el nivel de log de amarr y de la librería de búsqueda ed2k.
 
-    Acepta DEBUG/INFO/WARN/ERROR (igual que el mapeo logback del original).
+    Acepta DEBUG/INFO/WARN/ERROR. Además del logger ``amarr``, ajusta el logger
+    ``ed2k`` (y sus hijos ``ed2k.server``/``ed2k.kad``), que **no** cuelga de
+    ``amarr``; así, en DEBUG, se ven también las trazas internas de los motores
+    eD2k/Kad (conexión, login, bootstrap, paquetes), útiles para depurar búsquedas.
     """
     if log_level not in _LEVELS:
         raise ValueError(f"Unknown log level: {log_level}")
-    logging.getLogger("amarr").setLevel(_LEVELS[log_level])
+    level = _LEVELS[log_level]
+    logging.getLogger("amarr").setLevel(level)
+    logging.getLogger("ed2k").setLevel(level)
 
 
 # --- motores de búsqueda ------------------------------------------------------
