@@ -12,6 +12,7 @@ import re
 import unicodedata
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, List, Optional
+from urllib.parse import quote
 
 from ...jamule.response import SearchFile
 from ...magnet import MagnetLink
@@ -72,7 +73,9 @@ class Indexer(ABC):
 
     # --- API pública --------------------------------------------------------
 
-    def search(self, query: str, offset: int, limit: int, cat: List[int]) -> Feed:
+    def search(
+        self, query: str, offset: int, limit: int, cat: List[int], base_url: str = ""
+    ) -> Feed:
         self._log.debug(
             "Starting search for query: %s, offset: %s, limit: %s", query, offset, limit
         )
@@ -89,7 +92,7 @@ class Indexer(ABC):
             len(results),
             len(relevant),
         )
-        return self._build_feed(relevant, offset, limit)
+        return self._build_feed(relevant, offset, limit, base_url)
 
     def _raw_search_cached(self, query: str) -> List[SearchFile]:
         """``_raw_search`` con caché TTL por ``(cache_key, query)``.
@@ -163,7 +166,9 @@ class Indexer(ABC):
         return collapsed.strip()
 
     @staticmethod
-    def _build_feed(items: List[SearchFile], offset: int, limit: int) -> Feed:
+    def _build_feed(
+        items: List[SearchFile], offset: int, limit: int, base_url: str = ""
+    ) -> Feed:
         page = items[offset : offset + limit]
         feed_items = [
             Item(
@@ -182,6 +187,7 @@ class Indexer(ABC):
                     TorznabAttribute("peers", str(result.source_count)),
                     TorznabAttribute("size", str(result.size_full)),
                 ],
+                comments=_details_url(base_url, result),
             )
             for result in page
         ]
@@ -191,6 +197,23 @@ class Indexer(ABC):
                 item=feed_items,
             )
         )
+
+
+def _details_url(base_url: str, result: SearchFile) -> str:
+    """URL de la página de detalles de amarr para un resultado.
+
+    Sonarr/Radarr la muestran como *info link*. Va vacía si no hay ``base_url``
+    (p. ej. en tests), en cuyo caso no se emite ``<comments>``.
+    """
+    if not base_url:
+        return ""
+    return (
+        f"{base_url}/details?hash={result.hash.hex()}"
+        f"&name={quote(result.file_name)}"
+        f"&size={result.size_full}"
+        f"&seeders={result.complete_source_count}"
+        f"&peers={result.source_count}"
+    )
 
 
 def _empty_query_response() -> Feed:

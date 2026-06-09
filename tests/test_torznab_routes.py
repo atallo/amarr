@@ -50,3 +50,19 @@ def test_all_endpoint_aggregates_active_engines():
 def test_legacy_api_falls_back_to_aggregate_without_amule():
     c = _client({"ed2k": Ed2kServerIndexer(search_fn=lambda q: [])})
     assert c.get("/api?t=caps").status_code == 200
+
+
+def test_search_feed_includes_details_comments():
+    h = bytes(range(16))
+    e1 = Ed2kServerIndexer(
+        search_fn=lambda q: [
+            SearchResult(
+                file_hash=h, name="x.mkv", raw_name="x.mkv", size=1000,
+                sources=1, complete_sources=1,
+            )
+        ]
+    )
+    r = _client({"ed2k": e1}).get("/indexer/ed2k/api?t=search&q=ubuntu")
+    assert r.status_code == 200
+    assert "<comments>" in r.text  # info link para Sonarr/Radarr
+    assert "/details?hash=" in r.text

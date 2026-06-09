@@ -26,7 +26,9 @@ class AggregateIndexer(Indexer):
         super().__init__(logger or logging.getLogger("amarr.torznab.all"))
         self._indexers = list(indexers)
 
-    def search(self, query: str, offset: int, limit: int, cat: List[int]) -> Feed:
+    def search(
+        self, query: str, offset: int, limit: int, cat: List[int], base_url: str = ""
+    ) -> Feed:
         if not query.strip():
             return _empty_query_response()
 
@@ -36,7 +38,7 @@ class AggregateIndexer(Indexer):
         feeds: List[Feed] = []
         with ThreadPoolExecutor(max_workers=max(1, len(self._indexers))) as executor:
             futures = [
-                executor.submit(ix.search, query, 0, raw_limit, cat)
+                executor.submit(ix.search, query, 0, raw_limit, cat, base_url)
                 for ix in self._indexers
             ]
             # Orden de envío (determinista): el primer motor activo tiene

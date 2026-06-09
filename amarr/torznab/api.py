@@ -90,11 +90,12 @@ def _perform_search(
     cat = [int(c) for c in cat_param.split(",")] if cat_param else []
 
     queries = _search_queries(request, query, mode)
+    base_url = str(request.base_url).rstrip("/")
     _log.debug(
         "Handling search request: %s, %s, %s, %s", queries, offset, limit, cat
     )
     try:
-        feed = _perform_queries(indexer, queries, offset, limit, cat)
+        feed = _perform_queries(indexer, queries, offset, limit, cat, base_url)
         return FastAPIResponse(content=feed.to_xml(), media_type=_XML_MEDIA_TYPE)
     except ThrottledException:
         _log.warning("Throttled, returning 403")
@@ -114,9 +115,10 @@ def _perform_queries(
     offset: int,
     limit: int,
     cat: List[int],
+    base_url: str = "",
 ) -> Feed:
     if len(queries) == 1:
-        return indexer.search(queries[0], offset, limit, cat)
+        return indexer.search(queries[0], offset, limit, cat, base_url)
 
     # Para varias consultas (TV): se piden todas desde 0 hasta offset+limit,
     # se unen, se deduplica por URL y se pagina manualmente.
@@ -124,7 +126,7 @@ def _perform_queries(
     seen = set()
     merged: List = []
     for q in queries:
-        for item in indexer.search(q, 0, raw_limit, cat).channel.item:
+        for item in indexer.search(q, 0, raw_limit, cat, base_url).channel.item:
             if item.enclosure.url not in seen:
                 seen.add(item.enclosure.url)
                 merged.append(item)

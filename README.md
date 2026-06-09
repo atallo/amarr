@@ -158,6 +158,10 @@ repetido como abuso) y el **pool de contactos de Kad** se reutiliza para no
 re-bootstrapear. Ambos se cierran/descartan tras `AMARR_SEARCH_IDLE_TIMEOUT`
 segundos sin búsquedas (10 min por defecto; `0` = conectar/descartar por consulta).
 
+Cada resultado incluye además un **enlace de información** (elemento `<comments>`)
+que Sonarr/Radarr muestran junto al release; abre una página `GET /details` en
+amarr con los datos del fichero, el enlace **eD2k** y el **magnet**.
+
 ## Depuración
 
 Si una búsqueda no devuelve resultados, activa el modo **DEBUG** y repítela:

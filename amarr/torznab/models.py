@@ -75,16 +75,23 @@ class Item:
     enclosure: Enclosure
     attributes: List[TorznabAttribute] = field(default_factory=list)
     pub_date: str = "Sat, 14 Mar 2015 12:42:19 -0400"
+    # URL de detalles del resultado; Sonarr/Radarr la muestran como info link.
+    comments: str = ""
 
     def to_xml(self) -> str:
         attrs_xml = "".join(
             f"<{TORZNAB_PREFIX}:attr{_attrs(name=a.name, value=a.value)}/>"
             for a in self.attributes
         )
+        # <comments> es el elemento que Sonarr/Radarr usan como "info URL".
+        comments_xml = (
+            f"<comments>{escape(self.comments)}</comments>" if self.comments else ""
+        )
         return (
             "<item>"
             f"<title>{escape(self.title)}</title>"
             f"<pubDate>{escape(self.pub_date)}</pubDate>"
+            f"{comments_xml}"
             f"<enclosure{_attrs(url=self.enclosure.url, length=self.enclosure.length, type=self.enclosure.type)}/>"
             f"{attrs_xml}"
             "</item>"

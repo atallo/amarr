@@ -49,6 +49,27 @@ def test_home_no_active_backends_is_graceful():
     assert "/indexer/all/api" not in body
 
 
+def test_details_page_shows_ed2k_and_magnet():
+    app = FastAPI()
+    app.include_router(build_home_router(["amule"]))
+    c = TestClient(app)
+    h = bytes(range(16)).hex()
+    r = c.get(
+        "/details",
+        params={
+            "hash": h,
+            "name": "Ubuntu 24.04.mkv",
+            "size": 2000,
+            "seeders": 5,
+            "peers": 9,
+        },
+    )
+    assert r.status_code == 200
+    assert f"ed2k://|file|Ubuntu 24.04.mkv|2000|{h}" in r.text  # enlace eD2k
+    assert "magnet:?" in r.text  # magnet
+    assert "Ubuntu 24.04.mkv" in r.text
+
+
 def test_home_mounted_in_create_app():
     from amarr.app import create_app
     from amarr.torznab.indexer.amule import AmuleIndexer

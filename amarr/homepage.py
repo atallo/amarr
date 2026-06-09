@@ -11,10 +11,12 @@ from __future__ import annotations
 import html
 from typing import List
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse
 
 from .config import SEARCH_BACKENDS
+from .ed2k import human_size
+from .magnet import MagnetLink
 
 # Nombre legible y descripción de cada motor.
 _BACKEND_INFO = {
@@ -261,13 +263,71 @@ def render_home(base: str, backends: List[str]) -> str:
 </html>"""
 
 
+def render_details(
+    hash_hex: str, name: str, size: int, seeders: int, peers: int
+) -> str:
+    """Página de detalles de un resultado: datos básicos + enlace ed2k + magnet."""
+    name = name or "(sin nombre)"
+    try:
+        raw_hash = bytes.fromhex(hash_hex)
+    except ValueError:
+        raw_hash = b""
+    ed2k = f"ed2k://|file|{name}|{size}|{hash_hex}|/"
+    magnet = str(MagnetLink.for_amarr(raw_hash, name, size)) if raw_hash else ""
+    size_h = human_size(size) if size else "?"
+
+    return f"""<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{html.escape(name)} · amarr</title>
+<style>{_CSS}</style>
+</head>
+<body>
+<div class="container">
+  <h1>{html.escape(name)}</h1>
+  <p class="sub">{html.escape(size_h)} &middot; {seeders} seeders &middot; {peers} fuentes</p>
+
+  <h2>Datos</h2>
+  <ul>
+    <li>Tamaño: {html.escape(size_h)} ({size} bytes)</li>
+    <li>Hash eD2k: <code>{html.escape(hash_hex)}</code></li>
+    <li>Fuentes completas (seeders): {seeders}</li>
+    <li>Fuentes totales (peers): {peers}</li>
+  </ul>
+
+  <h2>Enlace eD2k</h2>
+  <p><a href="{html.escape(ed2k, quote=True)}">abrir en eMule/aMule</a></p>
+  <pre>{html.escape(ed2k)}</pre>
+
+  <h2>Magnet (amarr)</h2>
+  <p><a href="{html.escape(magnet, quote=True)}">abrir magnet</a></p>
+  <pre>{html.escape(magnet)}</pre>
+
+  <p class="foot muted"><a href="/">&larr; amarr</a></p>
+</div>
+</body>
+</html>"""
+
+
 def build_home_router(backends: List[str]) -> APIRouter:
-    """Router con la página de inicio (``GET /``) para los motores ``backends``."""
+    """Router con la página de inicio (``GET /``) y la de detalles (``GET /details``)."""
     router = APIRouter()
 
     @router.get("/", response_class=HTMLResponse)
     def home(request: Request) -> HTMLResponse:
         base = str(request.base_url).rstrip("/")
         return HTMLResponse(render_home(base, backends))
+
+    @router.get("/details", response_class=HTMLResponse)
+    def details(
+        hash: str = Query(...),
+        name: str = Query(""),
+        size: int = Query(0),
+        seeders: int = Query(0),
+        peers: int = Query(0),
+    ) -> HTMLResponse:
+        return HTMLResponse(render_details(hash, name, size, seeders, peers))
 
     return router
