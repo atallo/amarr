@@ -46,6 +46,9 @@ Opcionales:
 AMULE_FINISHED_PATH: /finished  # Carpeta donde aMule deja los ficheros terminados
 AMARR_PORT: 8080                # Puerto en el que escucha amarr (por defecto 8080)
 AMARR_LOG_LEVEL: INFO           # Nivel de log: DEBUG, INFO, WARN, ERROR (por defecto INFO)
+AMARR_LOG_FILE:                 # Si se indica (p.ej. /config/amarr.log), el log va a ese fichero (con rotación) y no a stdout
+AMARR_LOG_MAX_BYTES: 5242880    # Tamaño máximo del log antes de rotar (por defecto 5 MiB)
+AMARR_LOG_BACKUPS: 3            # Ficheros de log rotados a conservar (por defecto 3)
 AMARR_CONFIG_PATH: /config      # Carpeta de configuración persistente (por defecto /config)
 
 Motores de búsqueda (ver "Indexadores y motores de búsqueda"):
@@ -184,6 +187,10 @@ En DEBUG, además de los logs de amarr, se incluyen:
   (`Caché MISS`).
 
 Los logs salen por la salida estándar; en Docker, `docker logs -f amarr`.
+
+Si el modo DEBUG satura el log de Docker, define `AMARR_LOG_FILE` (p. ej.
+`/config/amarr.log`): el detalle de amarr/ed2k se escribe en ese fichero (con
+rotación, ver `AMARR_LOG_MAX_BYTES`/`AMARR_LOG_BACKUPS`) y deja de ir a stdout.
 
 ## Desarrollo
 

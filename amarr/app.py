@@ -26,6 +26,7 @@ from .config import (
     search_backends,
     search_idle_timeout,
     set_log_level,
+    setup_file_logging,
 )
 from .ed2k import DEFAULT_SERVER
 from .homepage import build_home_router
@@ -121,6 +122,7 @@ def build_indexers(
 def build_app_from_env() -> FastAPI:
     """Construye la app leyendo toda la configuración del entorno."""
     set_log_level(optional_env("AMARR_LOG_LEVEL", "INFO"))
+    setup_file_logging()
     config_path = optional_env("AMARR_CONFIG_PATH", "/config")
     amule_client = build_client(_log)
     category_store = SqliteCategoryStore(config_path)

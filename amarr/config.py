@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 import os
+from logging.handlers import RotatingFileHandler
 from typing import List, Mapping, Optional
 
 
@@ -63,6 +64,38 @@ def set_log_level(log_level: str) -> None:
     level = _LEVELS[log_level]
     logging.getLogger("amarr").setLevel(level)
     logging.getLogger("ed2k").setLevel(level)
+
+
+def setup_file_logging(env: Optional[Mapping[str, str]] = None):
+    """Envía el log de ``amarr``/``ed2k`` a un fichero en disco (con rotación) si
+    ``AMARR_LOG_FILE`` está definido, en lugar de a stdout — así el modo DEBUG no
+    satura el log de Docker.
+
+    Variables: ``AMARR_LOG_FILE`` (ruta; vacío = desactivado, log a stdout como
+    siempre), ``AMARR_LOG_MAX_BYTES`` (def. 5 MiB) y ``AMARR_LOG_BACKUPS`` (def. 3).
+    Devuelve el handler creado, o ``None`` si está desactivado.
+    """
+    env = env if env is not None else os.environ
+    log_file = env.get("AMARR_LOG_FILE", "")
+    if not log_file:
+        return None
+    max_bytes = int(env.get("AMARR_LOG_MAX_BYTES", str(5 * 1024 * 1024)))
+    backups = int(env.get("AMARR_LOG_BACKUPS", "3"))
+    directory = os.path.dirname(os.path.abspath(log_file))
+    if directory:
+        os.makedirs(directory, exist_ok=True)
+    handler = RotatingFileHandler(
+        log_file, maxBytes=max_bytes, backupCount=backups, encoding="utf-8"
+    )
+    handler.setFormatter(
+        logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
+    )
+    for name in ("amarr", "ed2k"):
+        logger = logging.getLogger(name)
+        logger.addHandler(handler)
+        # El log va solo al fichero; no se propaga al root (stdout/Docker).
+        logger.propagate = False
+    return handler
 
 
 # --- motores de búsqueda ------------------------------------------------------

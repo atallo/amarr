@@ -3,7 +3,12 @@ import logging
 
 import pytest
 
-from amarr.config import search_backends, search_idle_timeout, set_log_level
+from amarr.config import (
+    search_backends,
+    search_idle_timeout,
+    set_log_level,
+    setup_file_logging,
+)
 
 
 def test_default_is_amule():
@@ -68,3 +73,32 @@ def test_search_idle_timeout_rejects_invalid():
         search_idle_timeout({"AMARR_SEARCH_IDLE_TIMEOUT": "x"})
     with pytest.raises(ValueError):
         search_idle_timeout({"AMARR_SEARCH_IDLE_TIMEOUT": "-5"})
+
+
+# --- setup_file_logging -------------------------------------------------------
+
+
+def test_setup_file_logging_disabled_without_env():
+    assert setup_file_logging({}) is None
+
+
+def test_setup_file_logging_writes_to_file(tmp_path):
+    log_file = tmp_path / "amarr.log"
+    set_log_level("DEBUG")
+    handler = setup_file_logging({"AMARR_LOG_FILE": str(log_file)})
+    try:
+        assert handler is not None
+        logging.getLogger("amarr").debug("hola fichero de log")
+        handler.flush()
+        assert log_file.exists()
+        assert "hola fichero de log" in log_file.read_text(encoding="utf-8")
+        # El log no se propaga a stdout (no satura Docker).
+        assert logging.getLogger("amarr").propagate is False
+        assert logging.getLogger("ed2k").propagate is False
+    finally:
+        for name in ("amarr", "ed2k"):
+            lg = logging.getLogger(name)
+            lg.removeHandler(handler)
+            lg.propagate = True
+        handler.close()
+        set_log_level("INFO")
