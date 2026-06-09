@@ -54,13 +54,15 @@ AMARR_ED2K_SERVER: 45.82.80.155:5687  # Servidor eD2k para el motor "ed2k" (host
 AMARR_KAD_NODES: /config/nodes.dat    # nodes.dat para "kad" (por defecto: /config/nodes.dat o el empaquetado)
 AMARR_KAD_IP_ORDER: be                # Orden de bytes de IP en nodes.dat: be o le (por defecto be)
 AMARR_KAD_WITH_SOURCES: false         # Kad: contar fuentes reales por fichero (lento; por defecto false)
+AMARR_CACHE_TTL: 3600                 # Caché de búsquedas en segundos (0 = desactivar; por defecto 3600 = 1 h)
+AMARR_SEARCH_IDLE_TIMEOUT: 600        # Mantener viva la conexión eD2k / el pool Kad N s sin búsquedas (0 = no; def. 600 = 10 min)
 ```
 
 ### Volúmenes
 
 ```
-/config   # Persistente. Guarda la base de datos SQLite (amarr.db) con las
-          # categorías y la asignación fichero→categoría.
+/config   # Persistente. Guarda la BD SQLite de categorías (amarr.db) y la
+          # caché de búsquedas (cache.db, regenerable).
 ```
 
 > En versiones anteriores amarr usaba ficheros `categories.tsv`/`hashes.tsv`. Al
@@ -144,6 +146,18 @@ que aMule debe seguir configurado y en marcha.
 > **Nota:** el indexador `ddunlimitednet` del proyecto original **no** se ha
 > incluido en este port a Python.
 
+Los resultados de cada búsqueda se **cachean** en `cache.db` durante
+`AMARR_CACHE_TTL` segundos (1 h por defecto), por `(motor, consulta)`, de modo
+que la paginación de Sonarr/Radarr y las búsquedas repetidas no relanzan la
+consulta — importante sobre todo para Kad, que es lento. Pon `AMARR_CACHE_TTL=0`
+para desactivarla.
+
+Además, la conexión al **servidor eD2k** se **mantiene abierta** entre búsquedas
+(un único login en vez de uno por consulta — los servidores penalizan el login
+repetido como abuso) y el **pool de contactos de Kad** se reutiliza para no
+re-bootstrapear. Ambos se cierran/descartan tras `AMARR_SEARCH_IDLE_TIMEOUT`
+segundos sin búsquedas (10 min por defecto; `0` = conectar/descartar por consulta).
+
 ## Depuración
 
 Si una búsqueda no devuelve resultados, activa el modo **DEBUG** y repítela:
@@ -162,6 +176,8 @@ En DEBUG, además de los logs de amarr, se incluyen:
   llegan 0 crudos, es el motor/servidor (p. ej. servidor eD2k caído, `nodes.dat`
   obsoleto o aMule sin conexión a la red).
 - El *traceback* completo de los errores capturados.
+- Si la respuesta vino de la **caché** (`Caché HIT`) o se relanzó la búsqueda
+  (`Caché MISS`).
 
 Los logs salen por la salida estándar; en Docker, `docker logs -f amarr`.
 

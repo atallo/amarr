@@ -3,7 +3,7 @@ import logging
 
 import pytest
 
-from amarr.config import search_backends, set_log_level
+from amarr.config import search_backends, search_idle_timeout, set_log_level
 
 
 def test_default_is_amule():
@@ -52,3 +52,19 @@ def test_set_log_level_configures_amarr_and_ed2k_loggers():
 def test_set_log_level_rejects_unknown():
     with pytest.raises(ValueError):
         set_log_level("VERBOSE")
+
+
+# --- search_idle_timeout ------------------------------------------------------
+
+
+def test_search_idle_timeout_default_and_parsing():
+    assert search_idle_timeout({}) == 600
+    assert search_idle_timeout({"AMARR_SEARCH_IDLE_TIMEOUT": "0"}) == 0
+    assert search_idle_timeout({"AMARR_SEARCH_IDLE_TIMEOUT": "1200"}) == 1200
+
+
+def test_search_idle_timeout_rejects_invalid():
+    with pytest.raises(ValueError):
+        search_idle_timeout({"AMARR_SEARCH_IDLE_TIMEOUT": "x"})
+    with pytest.raises(ValueError):
+        search_idle_timeout({"AMARR_SEARCH_IDLE_TIMEOUT": "-5"})

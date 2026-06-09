@@ -114,6 +114,7 @@ class KadClient:
         self.sock.settimeout(timeout)
         self.my_id = os.urandom(16)
         self.alive = set()  # (ip, udp) que han respondido
+        self.contacts = {}  # pool de contactos descubierto (lo reutiliza KadSession)
         self.stats = {"sent": 0, "boot_res": 0, "res": 0, "search_res": 0,
                       "encrypted": 0, "other": 0}
 
@@ -360,6 +361,9 @@ class KadClient:
 
         out = filter_by_query(list(dedup.items()), query)
         out.sort(key=lambda r: r[1].get(FT_SOURCES, 0), reverse=True)
+
+        # Exponer el pool de contactos descubierto (lo reutiliza KadSession).
+        self.contacts = contacts
 
         if do_sources:
             self.enrich_sources(out, list(contacts.values()), min(enrich_top, 8))

@@ -9,18 +9,22 @@ from __future__ import annotations
 
 import logging
 import os
+from typing import Optional
 
 from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse
 
 from . import ed2k as _ed2k_pkg
 from .amule.debug_api import build_debug_router
+from .cache import SearchCache
 from .category.store import CategoryStore, SqliteCategoryStore
 from .config import (
     amarr_port,
+    cache_ttl,
     optional_env,
     required_env,
     search_backends,
+    search_idle_timeout,
     set_log_level,
 )
 from .ed2k import DEFAULT_SERVER
@@ -87,15 +91,20 @@ def _kad_nodes_path() -> str:
     return _PACKAGED_NODES
 
 
-def build_indexers(amule_client: AmuleClient) -> dict[str, Indexer]:
+def build_indexers(
+    amule_client: AmuleClient, cache: Optional[SearchCache] = None
+) -> dict[str, Indexer]:
     """Construye los indexers activos según ``AMARR_SEARCH_BACKENDS``."""
+    idle = search_idle_timeout()
     indexers: dict[str, Indexer] = {}
     for name in search_backends():
         if name == "amule":
-            indexers["amule"] = AmuleIndexer(amule_client, _log)
+            indexers["amule"] = AmuleIndexer(amule_client, _log, cache=cache)
         elif name == "ed2k":
             indexers["ed2k"] = Ed2kServerIndexer(
-                server=optional_env("AMARR_ED2K_SERVER", DEFAULT_SERVER)
+                server=optional_env("AMARR_ED2K_SERVER", DEFAULT_SERVER),
+                idle_seconds=idle,
+                cache=cache,
             )
         elif name == "kad":
             indexers["kad"] = KadIndexer(
@@ -103,6 +112,8 @@ def build_indexers(amule_client: AmuleClient) -> dict[str, Indexer]:
                 ip_order=optional_env("AMARR_KAD_IP_ORDER", "be"),
                 with_sources=optional_env("AMARR_KAD_WITH_SOURCES", "false").lower()
                 == "true",
+                idle_seconds=idle,
+                cache=cache,
             )
     return indexers
 
@@ -110,10 +121,12 @@ def build_indexers(amule_client: AmuleClient) -> dict[str, Indexer]:
 def build_app_from_env() -> FastAPI:
     """Construye la app leyendo toda la configuración del entorno."""
     set_log_level(optional_env("AMARR_LOG_LEVEL", "INFO"))
+    config_path = optional_env("AMARR_CONFIG_PATH", "/config")
     amule_client = build_client(_log)
-    category_store = SqliteCategoryStore(optional_env("AMARR_CONFIG_PATH", "/config"))
+    category_store = SqliteCategoryStore(config_path)
+    cache = SearchCache(config_path, cache_ttl())
     finished_path = optional_env("AMULE_FINISHED_PATH", "/finished")
-    indexers = build_indexers(amule_client)
+    indexers = build_indexers(amule_client, cache)
     return create_app(amule_client, category_store, finished_path, indexers)
 
 

@@ -73,6 +73,42 @@ SEARCH_BACKENDS = ("amule", "ed2k", "kad")
 _BACKEND_ALIASES = {"emule": "amule"}
 
 
+def cache_ttl(env: Optional[Mapping[str, str]] = None) -> int:
+    """TTL de la caché de búsquedas en segundos (``AMARR_CACHE_TTL``, def. 3600).
+
+    ``0`` desactiva la caché. Debe ser un entero >= 0.
+    """
+    env = env if env is not None else os.environ
+    raw = env.get("AMARR_CACHE_TTL", "3600")
+    try:
+        ttl = int(raw)
+    except ValueError as exc:
+        raise ValueError("AMARR_CACHE_TTL must be an integer (seconds)") from exc
+    if ttl < 0:
+        raise ValueError("AMARR_CACHE_TTL must be >= 0")
+    return ttl
+
+
+def search_idle_timeout(env: Optional[Mapping[str, str]] = None) -> int:
+    """Segundos que una sesión de búsqueda se mantiene viva sin actividad
+    (``AMARR_SEARCH_IDLE_TIMEOUT``, def. 600).
+
+    Aplica a la conexión persistente eD2k y al pool de contactos de Kad. ``0``
+    desactiva la persistencia (conectar/descartar en cada búsqueda). Entero >= 0.
+    """
+    env = env if env is not None else os.environ
+    raw = env.get("AMARR_SEARCH_IDLE_TIMEOUT", "600")
+    try:
+        secs = int(raw)
+    except ValueError as exc:
+        raise ValueError(
+            "AMARR_SEARCH_IDLE_TIMEOUT must be an integer (seconds)"
+        ) from exc
+    if secs < 0:
+        raise ValueError("AMARR_SEARCH_IDLE_TIMEOUT must be >= 0")
+    return secs
+
+
 def search_backends(env: Optional[Mapping[str, str]] = None) -> List[str]:
     """Motores de búsqueda activos (``AMARR_SEARCH_BACKENDS``, lista por comas).
 

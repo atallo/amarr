@@ -11,11 +11,14 @@ import logging
 import re
 import unicodedata
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from ...jamule.response import SearchFile
 from ...magnet import MagnetLink
 from ..models import Caps, Channel, Enclosure, Feed, Item, Response, TorznabAttribute
+
+if TYPE_CHECKING:
+    from ...cache import SearchCache
 
 
 class ThrottledException(Exception):
@@ -56,9 +59,16 @@ class Indexer(ABC):
 
     #: Título anunciado en las capacidades (``caps``); las subclases lo afinan.
     server_title: str = "Amarr"
+    #: Identificador del motor para la caché; vacío = no se cachea.
+    cache_key: str = ""
 
-    def __init__(self, logger: Optional[logging.Logger] = None) -> None:
+    def __init__(
+        self,
+        logger: Optional[logging.Logger] = None,
+        cache: "Optional[SearchCache]" = None,
+    ) -> None:
         self._log = logger or logging.getLogger("amarr.torznab.indexer")
+        self._cache = cache
 
     # --- API pública --------------------------------------------------------
 
@@ -71,17 +81,7 @@ class Indexer(ABC):
             return _empty_query_response()
         clean_query = self._normalize_search_query(query)
         self._log.debug("Consulta normalizada: %r -> %r", query, clean_query)
-        try:
-            results = self._raw_search(clean_query)
-        except _SEARCH_ERRORS as exc:
-            # En DEBUG se incluye el traceback completo para depurar.
-            self._log.warning(
-                "La búsqueda falló (%s): %s",
-                type(exc).__name__,
-                exc,
-                exc_info=self._log.isEnabledFor(logging.DEBUG),
-            )
-            return self._build_feed([], offset, limit)
+        results = self._raw_search_cached(clean_query)
         relevant = [f for f in results if self._is_relevant_video_result(f)]
         self._log.debug(
             "Resultados de %r: %d crudos, %d relevantes tras el filtro de vídeo",
@@ -90,6 +90,41 @@ class Indexer(ABC):
             len(relevant),
         )
         return self._build_feed(relevant, offset, limit)
+
+    def _raw_search_cached(self, query: str) -> List[SearchFile]:
+        """``_raw_search`` con caché TTL por ``(cache_key, query)``.
+
+        Los errores de red/datos se registran y devuelven lista vacía: **no** se
+        cachean, para reintentar en la siguiente petición.
+        """
+        use_cache = self._cache is not None and bool(self.cache_key)
+        if use_cache:
+            hit = self._cache.get(self.cache_key, query)
+            if hit is not None:
+                self._log.debug(
+                    "Caché HIT (%s, %r): %d resultados", self.cache_key, query, len(hit)
+                )
+                return hit
+        try:
+            results = self._raw_search(query)
+        except _SEARCH_ERRORS as exc:
+            # En DEBUG se incluye el traceback completo para depurar.
+            self._log.warning(
+                "La búsqueda falló (%s): %s",
+                type(exc).__name__,
+                exc,
+                exc_info=self._log.isEnabledFor(logging.DEBUG),
+            )
+            return []
+        if use_cache:
+            self._cache.put(self.cache_key, query, results)
+            self._log.debug(
+                "Caché MISS (%s, %r): guardados %d resultados",
+                self.cache_key,
+                query,
+                len(results),
+            )
+        return results
 
     def capabilities(self) -> Caps:
         return Caps(server_title=self.server_title)

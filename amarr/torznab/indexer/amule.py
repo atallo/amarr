@@ -17,11 +17,15 @@ class AmuleIndexer(Indexer):
     """Búsqueda a través de un aMule externo por la red kad/eD2k."""
 
     server_title = "Amarr (aMule)"
+    cache_key = "amule"
 
     def __init__(
-        self, amule_client: AmuleClient, logger: Optional[logging.Logger] = None
+        self,
+        amule_client: AmuleClient,
+        logger: Optional[logging.Logger] = None,
+        cache=None,
     ) -> None:
-        super().__init__(logger or logging.getLogger("amarr.torznab.amule"))
+        super().__init__(logger or logging.getLogger("amarr.torznab.amule"), cache)
         self._amule = amule_client
 
     def _raw_search(self, query: str) -> List[SearchFile]:
