@@ -66,7 +66,9 @@ def test_details_page_shows_ed2k_and_magnet():
     )
     assert r.status_code == 200
     assert f"ed2k://|file|Ubuntu 24.04.mkv|2000|{h}" in r.text  # enlace eD2k
-    assert "magnet:?" in r.text  # magnet
+    assert f"magnet:?xt=urn:ed2k:{h.upper()}" in r.text  # magnet eD2k real
+    assert "urn:btih:" in r.text  # Fake Magnet Amarr (sintético)
+    assert "Fake Magnet Amarr" in r.text
     assert "Ubuntu 24.04.mkv" in r.text
 
 

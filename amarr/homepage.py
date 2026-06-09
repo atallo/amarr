@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import html
 from typing import List
+from urllib.parse import quote
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse
@@ -273,6 +274,13 @@ def render_details(
     except ValueError:
         raw_hash = b""
     ed2k = f"ed2k://|file|{name}|{size}|{hash_hex}|/"
+    # Magnet eD2k estándar (urn:ed2k) — el "real", válido en clientes eD2k.
+    ed2k_magnet = (
+        f"magnet:?xt=urn:ed2k:{hash_hex.upper()}&dn={quote(name)}&xl={size}"
+        if raw_hash
+        else ""
+    )
+    # Magnet sintético (urn:btih) que amarr entrega a Sonarr/Radarr.
     magnet = str(MagnetLink.for_amarr(raw_hash, name, size)) if raw_hash else ""
     size_h = human_size(size) if size else "?"
 
@@ -301,7 +309,13 @@ def render_details(
   <p><a href="{html.escape(ed2k, quote=True)}">abrir en eMule/aMule</a></p>
   <pre>{html.escape(ed2k)}</pre>
 
-  <h2>Magnet (amarr)</h2>
+  <h2>Magnet eD2k</h2>
+  <p><a href="{html.escape(ed2k_magnet, quote=True)}">abrir magnet eD2k</a></p>
+  <pre>{html.escape(ed2k_magnet)}</pre>
+
+  <h2>Fake Magnet Amarr</h2>
+  <p class="muted">Magnet sintético (<code>urn:btih</code>) que amarr entrega a
+  Sonarr/Radarr para que gestionen la descarga; la descarga real la hace aMule.</p>
   <p><a href="{html.escape(magnet, quote=True)}">abrir magnet</a></p>
   <pre>{html.escape(magnet)}</pre>
 
