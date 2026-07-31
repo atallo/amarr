@@ -1,5 +1,6 @@
 """Tests de configuración: selección de motores y nivel de log."""
 import logging
+import os
 
 import pytest
 
@@ -95,6 +96,37 @@ def test_setup_file_logging_writes_to_file(tmp_path):
         # El log no se propaga a stdout (no satura Docker).
         assert logging.getLogger("amarr").propagate is False
         assert logging.getLogger("ed2k").propagate is False
+    finally:
+        for name in ("amarr", "ed2k"):
+            lg = logging.getLogger(name)
+            lg.removeHandler(handler)
+            lg.propagate = True
+        handler.close()
+        set_log_level("INFO")
+
+
+def test_file_logging_reopens_after_delete(tmp_path):
+    # Regresión: si se borra el fichero de log, el handler debe recrearlo en vez
+    # de seguir escribiendo a un inodo huérfano (RotatingFileHandler estándar).
+    log_file = tmp_path / "amarr.log"
+    set_log_level("DEBUG")
+    handler = setup_file_logging({"AMARR_LOG_FILE": str(log_file)})
+    log = logging.getLogger("amarr")
+    try:
+        log.debug("antes de borrar")
+        handler.flush()
+        assert log_file.exists()
+        # Simula un borrado externo. En Windows no se puede borrar un fichero
+        # abierto, así que cerramos el stream primero (el handler lo reabrirá).
+        with handler.lock:
+            handler.stream.close()
+            handler.stream = None
+        os.remove(log_file)
+        assert not log_file.exists()
+        log.debug("despues de borrar")
+        handler.flush()
+        assert log_file.exists()
+        assert "despues de borrar" in log_file.read_text(encoding="utf-8")
     finally:
         for name in ("amarr", "ed2k"):
             lg = logging.getLogger(name)

@@ -66,6 +66,57 @@ def set_log_level(log_level: str) -> None:
     logging.getLogger("ed2k").setLevel(level)
 
 
+class _RotatingWatchedFileHandler(RotatingFileHandler):
+    """``RotatingFileHandler`` que además **reabre** el fichero si desaparece o
+    cambia de inodo (lo borras a mano, lo rota un logrotate externo, etc.).
+
+    Un ``RotatingFileHandler`` normal mantiene el descriptor abierto: si borras el
+    fichero, en Linux sigue escribiendo a un inodo ya sin nombre y no vuelve a
+    aparecer nada en disco hasta reiniciar. Aquí se comprueba antes de cada
+    escritura y se reabre si hace falta, conservando la rotación por tamaño.
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._dev = 0
+        self._ino = 0
+        self._stat_stream()
+
+    def _stat_stream(self) -> None:
+        if self.stream is not None:
+            try:
+                st = os.fstat(self.stream.fileno())
+                self._dev, self._ino = st.st_dev, st.st_ino
+            except OSError:
+                self._dev = self._ino = 0
+
+    def _reopen_if_needed(self) -> None:
+        try:
+            st = os.stat(self.baseFilename)
+        except OSError:
+            st = None
+        changed = st is None
+        if st is not None and self._ino:
+            changed = st.st_ino != self._ino or st.st_dev != self._dev
+        if changed:
+            if self.stream is not None:
+                try:
+                    self.stream.flush()
+                    self.stream.close()
+                except OSError:
+                    pass
+                self.stream = None
+            self.stream = self._open()
+            self._stat_stream()
+
+    def emit(self, record) -> None:
+        try:
+            self._reopen_if_needed()
+        except Exception:  # el logging nunca debe tumbar la petición
+            pass
+        super().emit(record)
+
+
 def setup_file_logging(env: Optional[Mapping[str, str]] = None):
     """Envía el log de ``amarr``/``ed2k`` a un fichero en disco (con rotación) si
     ``AMARR_LOG_FILE`` está definido, en lugar de a stdout — así el modo DEBUG no
@@ -84,7 +135,7 @@ def setup_file_logging(env: Optional[Mapping[str, str]] = None):
     directory = os.path.dirname(os.path.abspath(log_file))
     if directory:
         os.makedirs(directory, exist_ok=True)
-    handler = RotatingFileHandler(
+    handler = _RotatingWatchedFileHandler(
         log_file, maxBytes=max_bytes, backupCount=backups, encoding="utf-8"
     )
     handler.setFormatter(
