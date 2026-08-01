@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "amarr"
-version = "0.0.0"  # Lo gestiona el release automático (ver release.yml).
-description = "Conector que permite usar aMule como cliente de descargas para Sonarr/Radarr (port a Python)."
+version = "0.0.0"  # Managed by the automatic release (see release.yml).
+description = "Connector that lets you use aMule as a download client for Sonarr/Radarr (Python port)."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
-authors = [{ name = "amarr (port a Python)" }]
+authors = [{ name = "amarr (Python port)" }]
 dependencies = [
     "fastapi>=0.110",
     "uvicorn[standard]>=0.27",
@@ -20,7 +20,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
-    "httpx>=0.27",  # requerido por fastapi.testclient
+    "httpx>=0.27",  # required by fastapi.testclient
 ]
 
 [project.scripts]
@@ -30,7 +30,7 @@ amarr = "amarr.app:main"
 include = ["amarr*"]
 
 [tool.setuptools.package-data]
-# nodes.dat empaquetado para el motor de búsqueda Kad.
+# nodes.dat bundled for the Kad search engine.
 "amarr.ed2k" = ["data/*.dat"]
 
 [tool.pytest.ini_options]

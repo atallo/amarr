@@ -1,81 +1,79 @@
-# Amarr - Conector aMule para *arr (port a Python)
+# Amarr - aMule connector for *arr (Python port)
 
-Este conector permite usar **aMule** como cliente de descargas para
-[Sonarr](https://sonarr.tv/) y [Radarr](https://radarr.video/). Funciona
-**emulando un cliente de torrents** (la WebAPI de qBittorrent v2.8.19), de modo
-que Sonarr/Radarr gestionan tus descargas como si fueran torrents, y exponiendo
-además endpoints **Torznab** para la búsqueda.
+This connector lets you use **aMule** as a download client for
+[Sonarr](https://sonarr.tv/) and [Radarr](https://radarr.video/). It works by
+**emulating a torrent client** (the qBittorrent WebAPI v2.8.19), so that
+Sonarr/Radarr manage your downloads as if they were torrents, and it also
+exposes **Torznab** endpoints for search.
 
-Es una traducción a **Python** del proyecto original escrito en Kotlin. La
-comunicación con aMule usa el protocolo binario **EC (External Connection)**,
-portado igualmente a Python a partir de la librería
-[jaMule](https://github.com/vexdev/jaMule), que sólo soporta aMule **2.3.1** a
-**2.3.3**.
+It is a **Python** translation of the original project written in Kotlin.
+Communication with aMule uses the binary **EC (External Connection)** protocol,
+also ported to Python from the
+[jaMule](https://github.com/vexdev/jaMule) library.
 
-## Requisitos previos
+## Prerequisites
 
-- [aMule](https://www.amule.org/) versión **2.3.1** a **2.3.3** en marcha y
-  configurado (con la conexión EC habilitada).
-- [Sonarr](https://sonarr.tv/) o [Radarr](https://radarr.video/) en marcha.
+- [aMule](https://www.amule.org/) unning and configured (with the EC connection enabled). 
+Testes with amule 3.0.0 and some older versions.
+- [Sonarr](https://sonarr.tv/) or [Radarr](https://radarr.video/) running.
 
-**Amarr no incluye su propia instalación de aMule**: necesitas tener aMule
-funcionando aparte (por ejemplo con la imagen Docker de
-[ngosang](https://github.com/ngosang/docker-amule) o la de Adunanza de
-[m4dfry](https://github.com/m4dfry/amule-adunanza-docker)).
+**Amarr does not include its own aMule installation**: you need aMule running
+separately (for example with the Docker image from
+[ngosang](https://github.com/ngosang/docker-amule).
 
-## Instalación
+## Installation
 
-Amarr se ejecuta como contenedor Docker. La imagen se publica en **GitHub
+Amarr runs as a Docker container. The image is published on **GitHub
 Container Registry (ghcr.io)**:
 
 ```
 ghcr.io/<owner>/amarr:latest
 ```
 
-(Sustituye `<owner>` por el usuario u organización de GitHub donde esté el
-repositorio.)
+(Replace `<owner>` with the GitHub user or organization where the
+repository lives.)
 
-### Variables de entorno
-
-```
-AMULE_HOST: aMule       # Host donde corre aMule (en Docker suele ser el nombre del contenedor)
-AMULE_PORT: 4712        # Puerto EC de aMule
-AMULE_PASSWORD: secret  # Contraseña de conexión a aMule
-
-Opcionales:
-AMULE_FINISHED_PATH: /finished  # Carpeta donde aMule deja los ficheros terminados
-AMARR_PORT: 8080                # Puerto en el que escucha amarr (por defecto 8080)
-AMARR_LOG_LEVEL: INFO           # Nivel de log: DEBUG, INFO, WARN, ERROR (por defecto INFO)
-AMARR_LOG_FILE:                 # Si se indica (p.ej. /config/amarr.log), el log va a ese fichero (con rotación) y no a stdout
-AMARR_LOG_MAX_BYTES: 5242880    # Tamaño máximo del log antes de rotar (por defecto 5 MiB)
-AMARR_LOG_BACKUPS: 3            # Ficheros de log rotados a conservar (por defecto 3)
-AMARR_CONFIG_PATH: /config      # Carpeta de configuración persistente (por defecto /config)
-
-Motores de búsqueda (ver "Indexadores y motores de búsqueda"):
-AMARR_SEARCH_BACKENDS: amule          # Motores activos, lista por comas: amule,ed2k,kad (por defecto amule)
-AMARR_ED2K_SERVER: 45.82.80.155:5687  # Servidor eD2k para el motor "ed2k" (host:puerto)
-AMARR_KAD_NODES: /config/nodes.dat    # nodes.dat para "kad" (por defecto: /config/nodes.dat o el empaquetado)
-AMARR_KAD_IP_ORDER: be                # Orden de bytes de IP en nodes.dat: be o le (por defecto be)
-AMARR_KAD_WITH_SOURCES: false         # Kad: contar fuentes reales por fichero (lento; por defecto false)
-AMARR_CACHE_TTL: 3600                 # Caché de búsquedas en segundos (0 = desactivar; por defecto 3600 = 1 h)
-AMARR_SEARCH_IDLE_TIMEOUT: 600        # Mantener viva la conexión eD2k / el pool Kad N s sin búsquedas (0 = no; def. 600 = 10 min)
-```
-
-### Volúmenes
+### Environment variables
 
 ```
-/config   # Persistente. Guarda la BD SQLite de categorías (amarr.db) y la
-          # caché de búsquedas (cache.db, regenerable).
+AMULE_HOST: aMule       # Host where aMule runs (in Docker it's usually the container name)
+AMULE_PORT: 4712        # aMule EC port
+AMULE_PASSWORD: secret  # aMule connection password
+
+Optional:
+AMULE_FINISHED_PATH: /finished  # Folder where aMule leaves finished files
+AMARR_PORT: 8080                # Port amarr listens on (default 8080)
+AMARR_LOG_LEVEL: INFO           # Log level: DEBUG, INFO, WARN, ERROR (default INFO)
+AMARR_LOG_FILE:                 # If set (e.g. /config/amarr.log), the log goes to that file (with rotation) instead of stdout
+AMARR_LOG_MAX_BYTES: 5242880    # Maximum log size before rotating (default 5 MiB)
+AMARR_LOG_BACKUPS: 3            # Number of rotated log files to keep (default 3)
+AMARR_CONFIG_PATH: /config      # Persistent configuration folder (default /config)
+
+Search engines (see "Indexers and search engines"):
+AMARR_SEARCH_BACKENDS: amule          # Active engines, comma-separated list: amule,ed2k,kad (default amule)
+AMARR_ED2K_SERVER: 45.82.80.155:5687  # eD2k server for the "ed2k" engine (host:port)
+AMARR_KAD_NODES: /config/nodes.dat    # nodes.dat for "kad" (default: /config/nodes.dat or the bundled one)
+AMARR_KAD_IP_ORDER: be                # IP byte order in nodes.dat: be or le (default be)
+AMARR_KAD_WITH_SOURCES: false         # Kad: count real sources per file (slow; default false)
+AMARR_CACHE_TTL: 3600                 # Search cache in seconds (0 = disable; default 3600 = 1 h)
+AMARR_SEARCH_IDLE_TIMEOUT: 600        # Keep the eD2k connection / Kad pool alive N s without searches (0 = no; default 600 = 10 min)
 ```
 
-> En versiones anteriores amarr usaba ficheros `categories.tsv`/`hashes.tsv`. Al
-> arrancar con esta versión, esos ficheros se renombran a `*.tsv.bak` (no se
-> importan; la base de datos arranca vacía).
+### Volumes
 
-El contenedor expone el puerto **8080**, donde amarr publica la API qBittorrent
-y el servidor Torznab para Sonarr/Radarr.
+```
+/config   # Persistent. Stores the SQLite category DB (amarr.db) and the
+          # search cache (cache.db, regenerable).
+```
 
-### Ejemplo `docker-compose.yml`
+> In earlier versions amarr used `categories.tsv`/`hashes.tsv` files. When
+> starting with this version, those files are renamed to `*.tsv.bak` (they are
+> not imported; the database starts empty).
+
+The container exposes port **8080**, where amarr serves the qBittorrent API
+and the Torznab server for Sonarr/Radarr.
+
+### `docker-compose.yml` example
 
 ```yaml
 services:
@@ -92,137 +90,137 @@ services:
       - 8080:8080
 ```
 
-## Configuración de Radarr/Sonarr (2 pasos)
+## Radarr/Sonarr configuration (2 steps)
 
-### 1. Configurar amarr como cliente de descargas
+### 1. Configure amarr as a download client
 
-Añade un nuevo cliente de descargas de tipo **qBittorrent** con estos ajustes
-(pulsa antes "Show advanced settings"):
-
-```
-Name: el que quieras
-Host: amarr      # Host donde corre amarr (en Docker, el nombre del contenedor)
-Port: 8080       # Puerto donde escucha amarr
-Priority: 50     # Prioridad más baja posible para que se prefieran otros clientes
-```
-
-### 2. Configurar amarr como indexador Torznab
-
-Añade un nuevo **indexador Torznab** con estos ajustes:
+Add a new download client of type **qBittorrent** with these settings
+(click "Show advanced settings" first):
 
 ```
-Name: el que quieras
-Url: http://amarr:8080/indexer/amule   # o /indexer/ed2k, /indexer/kad, /indexer/all (ver Indexadores)
-Download Client: el nombre que diste a amarr en el paso anterior
+Name: whatever you like
+Host: amarr      # Host where amarr runs (in Docker, the container name)
+Port: 8080       # Port amarr listens on
+Priority: 50     # Lowest possible priority so other clients are preferred
 ```
 
-## Indexadores y motores de búsqueda
+### 2. Configure amarr as a Torznab indexer
 
-amarr puede buscar con tres motores, activables con `AMARR_SEARCH_BACKENDS`
-(lista por comas, al menos uno):
+Add a new **Torznab indexer** with these settings:
 
-- **`amule`** — Busca a través de un **aMule externo** (protocolo EC), como hasta
-  ahora. Requiere aMule en marcha.
-- **`ed2k`** — Busca directamente en un **servidor eD2k**, implementado por amarr
-  (100% Python, sin aMule para la búsqueda). Servidor configurable con
+```
+Name: whatever you like
+Url: http://amarr:8080/indexer/amule   # or /indexer/ed2k, /indexer/kad, /indexer/all (see Indexers)
+Download Client: the name you gave amarr in the previous step
+```
+
+## Indexers and search engines
+
+amarr can search with three engines, enabled via `AMARR_SEARCH_BACKENDS`
+(comma-separated list, at least one):
+
+- **`amule`** — Searches through an **external aMule** (EC protocol), as before.
+  Requires aMule running.
+- **`ed2k`** — Searches directly on an **eD2k server**, implemented by amarr
+  (100% Python, no aMule needed for search). Server configurable with
   `AMARR_ED2K_SERVER`.
-- **`kad`** — Busca en la **red Kad** (serverless), implementado por amarr. Usa un
-  `nodes.dat` (`AMARR_KAD_NODES`; se incluye uno por defecto).
+- **`kad`** — Searches the **Kad network** (serverless), implemented by amarr. Uses a
+  `nodes.dat` (`AMARR_KAD_NODES`; a default one is bundled).
 
-Cada motor activo expone su propio endpoint Torznab, y además hay un endpoint
-`all` que **agrupa** los resultados de todos los activos:
+Each active engine exposes its own Torznab endpoint, and there is also an `all`
+endpoint that **aggregates** the results of all active engines:
 
 ```
-http://amarr:8080/indexer/amule    # solo aMule
-http://amarr:8080/indexer/ed2k     # solo servidor eD2k
-http://amarr:8080/indexer/kad      # solo Kad
-http://amarr:8080/indexer/all      # todos los motores activos, combinados
+http://amarr:8080/indexer/amule    # aMule only
+http://amarr:8080/indexer/ed2k     # eD2k server only
+http://amarr:8080/indexer/kad      # Kad only
+http://amarr:8080/indexer/all      # all active engines, combined
 ```
 
-En Sonarr/Radarr usa como URL del indexador la del motor que quieras (o `all`).
-Sea cual sea el motor de búsqueda, **la descarga siempre la realiza aMule**, así
-que aMule debe seguir configurado y en marcha.
+In Sonarr/Radarr, use the URL of whichever engine you want as the indexer URL
+(or `all`). Whatever the search engine, **the download is always performed by
+aMule**, so aMule must remain configured and running.
 
-> Los resultados de la red eD2k/Kad no están bien revisados (puedes acabar
-> descargando ficheros falsos). El motor `kad` puede tardar bastante por consulta.
+> Results from the eD2k/Kad network are not well moderated (you may end up
+> downloading fake files). The `kad` engine can take a while per query.
 >
-> **Nota:** el indexador `ddunlimitednet` del proyecto original **no** se ha
-> incluido en este port a Python.
+> **Note:** the `ddunlimitednet` indexer from the original project has **not**
+> been included in this Python port.
 
-Los resultados de cada búsqueda se **cachean** en `cache.db` durante
-`AMARR_CACHE_TTL` segundos (1 h por defecto), por `(motor, consulta)`, de modo
-que la paginación de Sonarr/Radarr y las búsquedas repetidas no relanzan la
-consulta — importante sobre todo para Kad, que es lento. Pon `AMARR_CACHE_TTL=0`
-para desactivarla.
+The results of each search are **cached** in `cache.db` for
+`AMARR_CACHE_TTL` seconds (1 h by default), keyed by `(engine, query)`, so that
+Sonarr/Radarr pagination and repeated searches don't re-run the query —
+important especially for Kad, which is slow. Set `AMARR_CACHE_TTL=0`
+to disable it.
 
-Además, la conexión al **servidor eD2k** se **mantiene abierta** entre búsquedas
-(un único login en vez de uno por consulta — los servidores penalizan el login
-repetido como abuso) y el **pool de contactos de Kad** se reutiliza para no
-re-bootstrapear. Ambos se cierran/descartan tras `AMARR_SEARCH_IDLE_TIMEOUT`
-segundos sin búsquedas (10 min por defecto; `0` = conectar/descartar por consulta).
+In addition, the connection to the **eD2k server** is **kept open** between
+searches (a single login instead of one per query — servers penalize repeated
+logins as abuse) and the **Kad contact pool** is reused to avoid
+re-bootstrapping. Both are closed/discarded after `AMARR_SEARCH_IDLE_TIMEOUT`
+seconds without searches (10 min by default; `0` = connect/discard per query).
 
-Cada resultado incluye además un **enlace de información** (elemento `<comments>`)
-que Sonarr/Radarr muestran junto al release; abre una página `GET /details` en
-amarr con los datos del fichero, el enlace **eD2k** y el **magnet**.
+Each result also includes an **info link** (a `<comments>` element)
+that Sonarr/Radarr show alongside the release; it opens a `GET /details` page in
+amarr with the file data, the **eD2k** link and the **magnet**.
 
-## Depuración
+## Debugging
 
-Si una búsqueda no devuelve resultados, activa el modo **DEBUG** y repítela:
+If a search returns no results, enable **DEBUG** mode and repeat it:
 
 ```
 AMARR_LOG_LEVEL: DEBUG
 ```
 
-En DEBUG, además de los logs de amarr, se incluyen:
+In DEBUG, besides amarr's own logs, the following are included:
 
-- Las trazas internas de los motores eD2k/Kad (loggers `ed2k.*`): conexión y
-  login al servidor eD2k, bootstrap y rondas de Kad, paquetes enviados/recibidos.
-- La consulta tras normalizarla y, por motor, cuántos resultados **crudos**
-  llegan y cuántos quedan **tras el filtro de vídeo**. Esto distingue el origen
-  del problema: si llegan crudos pero 0 relevantes, es el filtro de vídeo; si
-  llegan 0 crudos, es el motor/servidor (p. ej. servidor eD2k caído, `nodes.dat`
-  obsoleto o aMule sin conexión a la red).
-- El *traceback* completo de los errores capturados.
-- Si la respuesta vino de la **caché** (`Caché HIT`) o se relanzó la búsqueda
-  (`Caché MISS`).
+- The internal traces of the eD2k/Kad engines (`ed2k.*` loggers): connection and
+  login to the eD2k server, Kad bootstrap and rounds, packets sent/received.
+- The query after normalizing it and, per engine, how many **raw** results
+  arrive and how many remain **after the video filter**. This pinpoints the
+  source of the problem: if raw results arrive but 0 are relevant, it's the video
+  filter; if 0 raw results arrive, it's the engine/server (e.g. eD2k server down,
+  stale `nodes.dat` or aMule not connected to the network).
+- The full *traceback* of caught errors.
+- Whether the response came from the **cache** (`Cache HIT`) or the search was
+  re-run (`Cache MISS`).
 
-Los logs salen por la salida estándar; en Docker, `docker logs -f amarr`.
+Logs go to standard output; in Docker, `docker logs -f amarr`.
 
-Si el modo DEBUG satura el log de Docker, define `AMARR_LOG_FILE` (p. ej.
-`/config/amarr.log`): el detalle de amarr/ed2k se escribe en ese fichero (con
-rotación, ver `AMARR_LOG_MAX_BYTES`/`AMARR_LOG_BACKUPS`) y deja de ir a stdout.
+If DEBUG mode floods the Docker log, set `AMARR_LOG_FILE` (e.g.
+`/config/amarr.log`): the amarr/ed2k detail is written to that file (with
+rotation, see `AMARR_LOG_MAX_BYTES`/`AMARR_LOG_BACKUPS`) and stops going to stdout.
 
-## Desarrollo
+## Development
 
-Requiere Python 3.11 o superior.
+Requires Python 3.11 or higher.
 
 ```bash
-# Instala las dependencias (incluidas las de desarrollo)
+# Install the dependencies (including the development ones)
 pip install -e ".[dev]"
 
-# Ejecuta las pruebas
+# Run the tests
 pytest
 
-# Arranca el servidor en local (lee la configuración del entorno)
+# Start the server locally (reads the configuration from the environment)
 AMULE_HOST=localhost AMULE_PORT=4712 AMULE_PASSWORD=secret python -m amarr.app
 ```
 
-## Notas de arquitectura (port a Python)
+## Architecture notes (Python port)
 
-- **Servidor web:** se usa **FastAPI + uvicorn** en lugar de Ktor. La API
-  qBittorrent responde en JSON/texto y la Torznab en XML.
-- **Cliente EC síncrono:** el protocolo EC se ha portado de forma **síncrona**
-  (sockets + `struct` + `hashlib` + `zlib`), protegido con un cerrojo. Los
-  handlers de FastAPI que tocan aMule son funciones `def` (no `async`), así que
-  Starlette las ejecuta en su *threadpool* y no bloquean el bucle de eventos.
-- **Modelos:** se usa **pydantic v2** (equivalente a las `data class`
-  serializables del original).
-- **Compatibilidad de protocolo:** la implementación se ha validado byte a byte
-  contra los vectores de prueba de jaMule (autenticación, búsqueda, estado y
-  hash de contraseña).
-- **Publicación:** la imagen se publica en **ghcr.io** mediante GitHub Actions
-  (`.github/workflows/release.yml`), usando el `GITHUB_TOKEN` integrado.
+- **Web server:** **FastAPI + uvicorn** is used instead of Ktor. The qBittorrent
+  API responds in JSON/text and the Torznab one in XML.
+- **Synchronous EC client:** the EC protocol has been ported **synchronously**
+  (sockets + `struct` + `hashlib` + `zlib`), protected with a lock. The
+  FastAPI handlers that touch aMule are `def` (not `async`) functions, so
+  Starlette runs them in its *threadpool* and they don't block the event loop.
+- **Models:** **pydantic v2** is used (equivalent to the serializable
+  `data class`es of the original).
+- **Protocol compatibility:** the implementation has been validated byte by byte
+  against the jaMule test vectors (authentication, search, status and
+  password hash).
+- **Publishing:** the image is published to **ghcr.io** via GitHub Actions
+  (`.github/workflows/release.yml`), using the built-in `GITHUB_TOKEN`.
 
-## Licencia
+## License
 
 MIT.

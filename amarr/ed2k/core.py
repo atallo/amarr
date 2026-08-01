@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
-"""Primitivas compartidas eD2k/Kad: tipos de tag y su parser, utilidades de texto
-(decodificacion robusta, saneado de nombres, filtro de busqueda), tamano legible y
-el modelo de resultado `SearchResult`. Sin dependencias externas (solo stdlib)."""
+"""Shared eD2k/Kad primitives: tag types and their parser, text utilities
+(robust decoding, name sanitizing, search filter), human-readable size and
+the `SearchResult` result model. No external dependencies (stdlib only)."""
 import struct
 import sys
 import unicodedata
 from dataclasses import dataclass, field
 
-# --- Tipos de tag (formato binario eD2k/eMule) ---
+# --- Tag types (eD2k/eMule binary format) ---
 TT_HASH = 0x01
 TT_STRING = 0x02
 TT_UINT32 = 0x03
@@ -22,7 +22,7 @@ TT_UINT64 = 0x0B
 TT_STR1 = 0x11
 TT_STR16 = 0x20
 
-# --- Tags de fichero (resultados de busqueda) ---
+# --- File tags (search results) ---
 FT_FILENAME = 0x01
 FT_FILESIZE = 0x02
 FT_FILETYPE = 0x03
@@ -31,13 +31,13 @@ FT_SOURCES = 0x15
 FT_COMPLETE_SOURCES = 0x30
 
 
-# ======================= Texto =======================
+# ======================= Text =======================
 def decode_str(raw):
-    """Los nombres en eD2k/Kad no siempre son UTF-8 valido. Estrategia:
-    1) UTF-8 estricto si es valido.
-    2) Si falla pero el texto es UTF-8 con bytes sueltos rotos (hay acentos
-       validos decodificables), se usa UTF-8 y los bytes rotos quedan como '�'.
-    3) Si no, se asume CP1252/Latin-1 (datos legacy de servidor)."""
+    """Names in eD2k/Kad are not always valid UTF-8. Strategy:
+    1) Strict UTF-8 if it is valid.
+    2) If it fails but the text is UTF-8 with a few broken bytes (there are
+       valid decodable accents), UTF-8 is used and the broken bytes become '�'.
+    3) Otherwise, CP1252/Latin-1 is assumed (legacy server data)."""
     try:
         return raw.decode("utf-8")
     except UnicodeDecodeError:
@@ -48,37 +48,37 @@ def decode_str(raw):
     try:
         return raw.decode("cp1252")
     except UnicodeDecodeError:
-        return raw.decode("latin-1")  # nunca falla
+        return raw.decode("latin-1")  # never fails
 
 
 _INVALID_FN_CHARS = set('<>:"/\\|?*') | {chr(c) for c in range(32)} | {"�"}
 
 
 def sanitize_filename(name, repl="_"):
-    """Convierte 'name' en un nombre de fichero valido y multiplataforma:
-    sustituye los caracteres reservados de Windows (< > : " / \\ | ? *), los de
-    control y el marcador de byte invalido por 'repl', y recorta puntos/espacios
-    finales. Asi sirve tal cual como fichero y no rompe el enlace ed2k (donde '|'
-    es el separador)."""
+    """Turns 'name' into a valid, cross-platform file name:
+    replaces the Windows reserved characters (< > : " / \\ | ? *), the control
+    ones and the invalid-byte marker with 'repl', and trims trailing dots/spaces.
+    This way it works as a file as-is and does not break the ed2k link (where '|'
+    is the separator)."""
     if not isinstance(name, str):
         name = str(name)
     s = "".join(repl if ch in _INVALID_FN_CHARS else ch for ch in name)
     s = s.rstrip(" .")
-    return s or "sin_nombre"
+    return s or "no_name"
 
 
 def _fold(s):
-    """Normaliza para comparar: quita acentos (ñ->n, á->a) y pasa a minusculas.
-    Asi la busqueda es insensible a acentos, igual que el servidor eD2k."""
+    """Normalizes for comparison: removes accents (ñ->n, á->a) and lowercases.
+    This way the search is accent-insensitive, just like the eD2k server."""
     nfkd = unicodedata.normalize("NFKD", s)
     base = "".join(c for c in nfkd if not unicodedata.combining(c))
     return base.casefold()
 
 
 def filter_by_query(results, query):
-    """Filtra (hash, tags) para que el nombre contenga TODAS las palabras buscadas.
-    Insensible a mayus/minus y a ACENTOS: buscar 'campaña' acepta tambien 'campana'
-    y 'á' acepta 'a'."""
+    """Filters (hash, tags) so the name contains ALL the searched words.
+    Case- and ACCENT-insensitive: searching 'campaña' also accepts 'campana'
+    and 'á' accepts 'a'."""
     words = [_fold(w) for w in query.split() if w.strip()]
     if not words:
         return results
@@ -101,8 +101,8 @@ def human_size(n):
 
 
 def setup_utf8_output():
-    """Hace que stdout muestre acentos correctamente. En Windows pone la consola
-    en UTF-8 (code page 65001) para que ñ/á no salgan como mojibake ('Ã±')."""
+    """Makes stdout display accents correctly. On Windows it sets the console
+    to UTF-8 (code page 65001) so that ñ/á don't come out as mojibake ('Ã±')."""
     if sys.platform == "win32":
         try:
             import ctypes
@@ -118,8 +118,8 @@ def setup_utf8_output():
 
 # ======================= Tags =======================
 def read_tag(buf, off):
-    """Lee un tag eD2k/Kad en 'off'. Devuelve (nombre, valor, nuevo_off).
-    El nombre es int para tags especiales (1 byte) o str para nombres largos."""
+    """Reads an eD2k/Kad tag at 'off'. Returns (name, value, new_off).
+    The name is int for special tags (1 byte) or str for long names."""
     ttype = buf[off]
     off += 1
     if ttype & 0x80:
@@ -181,15 +181,15 @@ def read_tag(buf, off):
         off += 2 + (nbits + 7) // 8
         val = None
     else:
-        raise ValueError("Tipo de tag desconocido: 0x%02X" % ttype)
+        raise ValueError("Unknown tag type: 0x%02X" % ttype)
     return name, val, off
 
 
-# ======================= Resultado =======================
+# ======================= Result =======================
 @dataclass
 class SearchResult:
-    """Un fichero encontrado. `name` ya viene saneado (valido como fichero);
-    `raw_name` es el nombre original decodificado. `file_hash` son 16 bytes."""
+    """A found file. `name` is already sanitized (valid as a file);
+    `raw_name` is the original decoded name. `file_hash` is 16 bytes."""
     file_hash: bytes
     name: str
     raw_name: str
@@ -210,7 +210,7 @@ class SearchResult:
     def from_tags(cls, file_hash, tags):
         raw = tags.get(FT_FILENAME, "")
         if not isinstance(raw, str) or not raw:
-            raw = "(sin nombre)"
+            raw = "(no name)"
         size = tags.get(FT_FILESIZE, 0)
         if FT_FILESIZE_HI in tags:
             size += tags[FT_FILESIZE_HI] << 32
@@ -221,17 +221,17 @@ class SearchResult:
 
 
 def print_results(results, limit=50):
-    """Imprime una lista de SearchResult (nombre, tamano, fuentes y enlace ed2k)."""
+    """Prints a list of SearchResult (name, size, sources and ed2k link)."""
     if not results:
-        print("[!] 0 resultados.")
+        print("[!] 0 results.")
         return
-    extra = "" if len(results) <= limit else " (mostrando %d)" % limit
-    print("[*] %d resultados%s:\n" % (len(results), extra))
+    extra = "" if len(results) <= limit else " (showing %d)" % limit
+    print("[*] %d results%s:\n" % (len(results), extra))
     for r in results[:limit]:
         src = ""
         if r.sources is not None:
-            src = "  fuentes=%s" % r.sources
+            src = "  sources=%s" % r.sources
             if r.complete_sources is not None:
-                src += " (compl=%s)" % r.complete_sources
+                src += " (complete=%s)" % r.complete_sources
         print("  %s  [%s]%s" % (r.name, human_size(r.size), src))
         print("  %s\n" % r.ed2k_link)

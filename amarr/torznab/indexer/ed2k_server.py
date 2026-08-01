@@ -1,7 +1,7 @@
-"""Indexador Torznab que busca en un servidor eD2k (``amarr.ed2k.ServerSearch``).
+"""Torznab indexer that searches an eD2k server (``amarr.ed2k.ServerSearch``).
 
-Búsqueda 100% Python por TCP, independiente de aMule. La descarga sigue pasando
-por aMule (el magnet resultante se le entrega vía la API qBittorrent).
+100% Python search over TCP, independent of aMule. Downloading still goes
+through aMule (the resulting magnet is handed to it via the qBittorrent API).
 """
 from __future__ import annotations
 
@@ -14,14 +14,14 @@ from ...jamule.response import SearchFile
 from ._results import to_search_files
 from .base import Indexer
 
-# Firma del motor de búsqueda; inyectable para poder testear sin red.
+# Search engine signature; injectable so it can be tested without a network.
 SearchFn = Callable[[str], List[SearchResult]]
 
 
 class Ed2kServerIndexer(Indexer):
-    """Búsqueda por palabra clave en un servidor eD2k (TCP)."""
+    """Keyword search on an eD2k server (TCP)."""
 
-    server_title = "Amarr (eD2k servidor)"
+    server_title = "Amarr (eD2k server)"
     cache_key = "ed2k"
 
     def __init__(
@@ -35,7 +35,7 @@ class Ed2kServerIndexer(Indexer):
     ) -> None:
         super().__init__(logger or logging.getLogger("amarr.torznab.ed2k"), cache)
         self._search_fn = search_fn
-        # Sesión TCP persistente: se reutiliza la conexión entre búsquedas.
+        # Persistent TCP session: the connection is reused between searches.
         self._session = (
             None
             if search_fn is not None
@@ -46,7 +46,7 @@ class Ed2kServerIndexer(Indexer):
         if self._search_fn is not None:
             results = self._search_fn(query)
         else:
-            self._log.debug("eD2k: buscando %r (sesión persistente)", query)
+            self._log.debug("eD2k: searching %r (persistent session)", query)
             results = self._session.search(query)
-        self._log.debug("eD2k: %d resultados crudos del servidor", len(results))
+        self._log.debug("eD2k: %d raw results from the server", len(results))
         return to_search_files(results)

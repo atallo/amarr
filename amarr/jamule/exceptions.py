@@ -1,29 +1,29 @@
-"""Excepciones de la capa jamule (protocolo EC).
+"""Exceptions of the jamule layer (EC protocol).
 
-Port de ``jamule/exception/*.kt``. ``AmuleException`` es la raíz; el resto
-hereda de ella, igual que en la librería original.
+Port of ``jamule/exception/*.kt``. ``AmuleException`` is the root; the rest
+inherit from it, just like in the original library.
 """
 
 from __future__ import annotations
 
 
 class AmuleException(Exception):
-    """Excepción base de todos los errores de jamule."""
+    """Base exception for all jamule errors."""
 
 
 class CommunicationException(AmuleException):
-    """Respuesta inesperada o imposible de interpretar del servidor."""
+    """Unexpected or uninterpretable response from the server."""
 
 
 class InvalidECException(AmuleException):
-    """El paquete EC recibido o construido es inválido."""
+    """The received or built EC packet is invalid."""
 
 
 class ServerException(AmuleException):
-    """aMule devolvió un error explícito.
+    """aMule returned an explicit error.
 
-    :param message: mensaje de error.
-    :param cause: respuesta o excepción que originó el error, si la hay.
+    :param message: error message.
+    :param cause: response or exception that caused the error, if any.
     """
 
     def __init__(self, message: str, cause: object | None = None) -> None:

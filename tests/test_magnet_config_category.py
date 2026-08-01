@@ -1,4 +1,4 @@
-"""Tests de MagnetLink, validación de puerto y almacén de categorías (SQLite)."""
+"""Tests for MagnetLink, port validation and the category store (SQLite)."""
 import os
 
 import pytest
@@ -72,7 +72,7 @@ def test_creates_db_file(tmp_path):
 
 def test_get_category_persists_across_instances(tmp_path):
     SqliteCategoryStore(str(tmp_path)).store("tv", "deadbeef")
-    # Una instancia nueva (misma BD en disco) debe ver el dato.
+    # A new instance (same DB on disk) must see the data.
     fresh = SqliteCategoryStore(str(tmp_path))
     assert fresh.get_category("deadbeef") == "tv"
 
@@ -91,7 +91,7 @@ def test_delete_category(tmp_path):
 def test_store_upserts_same_hash(tmp_path):
     store = SqliteCategoryStore(str(tmp_path))
     store.store("a", "h1")
-    store.store("b", "h1")  # mismo hash -> reemplaza
+    store.store("b", "h1")  # same hash -> replaces
     assert store.get_category("h1") == "b"
 
 
@@ -102,16 +102,16 @@ def test_add_and_get_categories(tmp_path):
 
 
 def test_legacy_tsv_archived_not_imported(tmp_path):
-    # Instalación previa con TSV: al arrancar con SQLite se aparta sin importar.
+    # Previous install with TSV: on starting with SQLite it is set aside, not imported.
     (tmp_path / "categories.tsv").write_text("movies\t/movies\n", encoding="utf-8")
     (tmp_path / "hashes.tsv").write_text("abc\tmovies\n", encoding="utf-8")
 
     store = SqliteCategoryStore(str(tmp_path))
 
-    # Datos NO importados (se empieza con la BD vacía).
+    # Data NOT imported (starts with an empty DB).
     assert store.get_category("abc") is None
     assert store.get_categories() == set()
-    # Los .tsv se apartan a .bak (respaldo).
+    # The .tsv files are set aside as .bak (backup).
     assert not (tmp_path / "categories.tsv").exists()
     assert not (tmp_path / "hashes.tsv").exists()
     assert (tmp_path / "categories.tsv.bak").exists()

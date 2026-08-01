@@ -1,7 +1,7 @@
-"""Lectura de variables de entorno y configuración (de ``App.kt``).
+"""Reading of environment variables and configuration (from ``App.kt``).
 
-Centraliza el acceso a variables de entorno y la validación del puerto, igual
-que las funciones ``amarrPort``/``requiredEnv``/``optionalEnv`` de Kotlin.
+Centralizes access to environment variables and port validation, just like
+the ``amarrPort``/``requiredEnv``/``optionalEnv`` functions in Kotlin.
 """
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from typing import List, Mapping, Optional
 
 
 def required_env(name: str, env: Optional[Mapping[str, str]] = None) -> str:
-    """Devuelve la variable o lanza si no está definida."""
+    """Returns the variable or raises if it is not set."""
     env = env if env is not None else os.environ
     value = env.get(name)
     if value is None:
@@ -28,9 +28,9 @@ def optional_env(
 
 
 def amarr_port(env: Optional[Mapping[str, str]] = None) -> int:
-    """Puerto del servidor (AMARR_PORT, por defecto 8080).
+    """Server port (AMARR_PORT, default 8080).
 
-    Debe ser un entero válido entre 1 y 65535, igual que en el original.
+    Must be a valid integer between 1 and 65535, just like in the original.
     """
     env = env if env is not None else os.environ
     raw = env.get("AMARR_PORT", "8080")
@@ -52,12 +52,13 @@ _LEVELS = {
 
 
 def set_log_level(log_level: str) -> None:
-    """Configura el nivel de log de amarr y de la librería de búsqueda ed2k.
+    """Configures the log level of amarr and of the ed2k search library.
 
-    Acepta DEBUG/INFO/WARN/ERROR. Además del logger ``amarr``, ajusta el logger
-    ``ed2k`` (y sus hijos ``ed2k.server``/``ed2k.kad``), que **no** cuelga de
-    ``amarr``; así, en DEBUG, se ven también las trazas internas de los motores
-    eD2k/Kad (conexión, login, bootstrap, paquetes), útiles para depurar búsquedas.
+    Accepts DEBUG/INFO/WARN/ERROR. Besides the ``amarr`` logger, it adjusts the
+    ``ed2k`` logger (and its children ``ed2k.server``/``ed2k.kad``), which does
+    **not** hang off ``amarr``; this way, in DEBUG, the internal traces of the
+    eD2k/Kad engines (connection, login, bootstrap, packets) are also visible,
+    useful for debugging searches.
     """
     if log_level not in _LEVELS:
         raise ValueError(f"Unknown log level: {log_level}")
@@ -67,13 +68,13 @@ def set_log_level(log_level: str) -> None:
 
 
 class _RotatingWatchedFileHandler(RotatingFileHandler):
-    """``RotatingFileHandler`` que además **reabre** el fichero si desaparece o
-    cambia de inodo (lo borras a mano, lo rota un logrotate externo, etc.).
+    """``RotatingFileHandler`` that also **reopens** the file if it disappears or
+    changes inode (you delete it by hand, an external logrotate rotates it, etc.).
 
-    Un ``RotatingFileHandler`` normal mantiene el descriptor abierto: si borras el
-    fichero, en Linux sigue escribiendo a un inodo ya sin nombre y no vuelve a
-    aparecer nada en disco hasta reiniciar. Aquí se comprueba antes de cada
-    escritura y se reabre si hace falta, conservando la rotación por tamaño.
+    A normal ``RotatingFileHandler`` keeps the descriptor open: if you delete the
+    file, on Linux it keeps writing to an already unnamed inode and nothing shows
+    up on disk again until restart. Here it is checked before each
+    write and reopened if needed, preserving size-based rotation.
     """
 
     def __init__(self, *args, **kwargs) -> None:
@@ -112,19 +113,19 @@ class _RotatingWatchedFileHandler(RotatingFileHandler):
     def emit(self, record) -> None:
         try:
             self._reopen_if_needed()
-        except Exception:  # el logging nunca debe tumbar la petición
+        except Exception:  # logging must never take down the request
             pass
         super().emit(record)
 
 
 def setup_file_logging(env: Optional[Mapping[str, str]] = None):
-    """Envía el log de ``amarr``/``ed2k`` a un fichero en disco (con rotación) si
-    ``AMARR_LOG_FILE`` está definido, en lugar de a stdout — así el modo DEBUG no
-    satura el log de Docker.
+    """Sends the ``amarr``/``ed2k`` log to a file on disk (with rotation) if
+    ``AMARR_LOG_FILE`` is set, instead of to stdout — so that DEBUG mode does not
+    flood the Docker log.
 
-    Variables: ``AMARR_LOG_FILE`` (ruta; vacío = desactivado, log a stdout como
-    siempre), ``AMARR_LOG_MAX_BYTES`` (def. 5 MiB) y ``AMARR_LOG_BACKUPS`` (def. 3).
-    Devuelve el handler creado, o ``None`` si está desactivado.
+    Variables: ``AMARR_LOG_FILE`` (path; empty = disabled, log to stdout as
+    always), ``AMARR_LOG_MAX_BYTES`` (default 5 MiB) and ``AMARR_LOG_BACKUPS`` (default 3).
+    Returns the created handler, or ``None`` if disabled.
     """
     env = env if env is not None else os.environ
     log_file = env.get("AMARR_LOG_FILE", "")
@@ -144,23 +145,23 @@ def setup_file_logging(env: Optional[Mapping[str, str]] = None):
     for name in ("amarr", "ed2k"):
         logger = logging.getLogger(name)
         logger.addHandler(handler)
-        # El log va solo al fichero; no se propaga al root (stdout/Docker).
+        # The log goes only to the file; it is not propagated to root (stdout/Docker).
         logger.propagate = False
     return handler
 
 
-# --- motores de búsqueda ------------------------------------------------------
+# --- search engines -----------------------------------------------------------
 
-#: Motores de búsqueda válidos en orden canónico.
+#: Valid search engines in canonical order.
 SEARCH_BACKENDS = ("amule", "ed2k", "kad")
-#: Sinónimos aceptados -> nombre canónico.
+#: Accepted synonyms -> canonical name.
 _BACKEND_ALIASES = {"emule": "amule"}
 
 
 def cache_ttl(env: Optional[Mapping[str, str]] = None) -> int:
-    """TTL de la caché de búsquedas en segundos (``AMARR_CACHE_TTL``, def. 3600).
+    """Search cache TTL in seconds (``AMARR_CACHE_TTL``, default 3600).
 
-    ``0`` desactiva la caché. Debe ser un entero >= 0.
+    ``0`` disables the cache. Must be an integer >= 0.
     """
     env = env if env is not None else os.environ
     raw = env.get("AMARR_CACHE_TTL", "3600")
@@ -174,11 +175,11 @@ def cache_ttl(env: Optional[Mapping[str, str]] = None) -> int:
 
 
 def search_idle_timeout(env: Optional[Mapping[str, str]] = None) -> int:
-    """Segundos que una sesión de búsqueda se mantiene viva sin actividad
-    (``AMARR_SEARCH_IDLE_TIMEOUT``, def. 600).
+    """Seconds a search session is kept alive without activity
+    (``AMARR_SEARCH_IDLE_TIMEOUT``, default 600).
 
-    Aplica a la conexión persistente eD2k y al pool de contactos de Kad. ``0``
-    desactiva la persistencia (conectar/descartar en cada búsqueda). Entero >= 0.
+    Applies to the persistent eD2k connection and the Kad contact pool. ``0``
+    disables persistence (connect/discard on each search). Integer >= 0.
     """
     env = env if env is not None else os.environ
     raw = env.get("AMARR_SEARCH_IDLE_TIMEOUT", "600")
@@ -194,12 +195,12 @@ def search_idle_timeout(env: Optional[Mapping[str, str]] = None) -> int:
 
 
 def search_backends(env: Optional[Mapping[str, str]] = None) -> List[str]:
-    """Motores de búsqueda activos (``AMARR_SEARCH_BACKENDS``, lista por comas).
+    """Active search engines (``AMARR_SEARCH_BACKENDS``, comma-separated list).
 
-    Acepta ``amule`` (a través de un aMule externo), ``ed2k`` (servidor eD2k) y
-    ``kad`` (red Kad); ``emule`` es alias de ``amule``. Por defecto ``amule``
-    (mismo comportamiento que antes). Devuelve la lista canónica sin duplicados y
-    en orden de aparición. Lanza si algún valor es inválido o la lista es vacía.
+    Accepts ``amule`` (through an external aMule), ``ed2k`` (eD2k server) and
+    ``kad`` (Kad network); ``emule`` is an alias of ``amule``. Defaults to ``amule``
+    (same behavior as before). Returns the canonical list without duplicates and
+    in order of appearance. Raises if any value is invalid or the list is empty.
     """
     env = env if env is not None else os.environ
     raw = env.get("AMARR_SEARCH_BACKENDS", "amule")

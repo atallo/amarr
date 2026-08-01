@@ -1,7 +1,7 @@
-"""Tests del protocolo EC: paquetes, codificación UTF-8 y hash de contraseña.
+"""EC protocol tests: packets, UTF-8 encoding and password hashing.
 
-Portados de ``PacketParserTest``, ``EncodingTest``, ``PasswordHasherTest`` y los
-vectores de ``SamplePackets`` de jaMule.
+Ported from ``PacketParserTest``, ``EncodingTest``, ``PasswordHasherTest`` and the
+``SamplePackets`` vectors of jaMule.
 """
 import io
 
@@ -15,7 +15,7 @@ from amarr.jamule.exceptions import InvalidECException
 from amarr.jamule.password import hash_password
 from amarr.jamule import request as req
 
-# Vectores de ``SamplePackets.kt`` (hex -> descripción).
+# Vectors from ``SamplePackets.kt`` (hex -> description).
 _AUTH_REQ = (
     "00000022000000240205c8800609614d756c65636d6400c8820606322e33"
     "2e330004030202041801001a0100"
@@ -59,8 +59,8 @@ def test_parses_status_response():
     pkt = _parser().parse(io.BytesIO(bytes.fromhex(_STATUS_RESPONSE)))
     assert pkt.op_code == ECOpCode.EC_OP_STATS
     assert len(pkt.tags) == 16
-    # Igualdad de tags excluye el valor (paridad con Kotlin); el valor real
-    # del primer tag es 0x1664 = 5732.
+    # Tag equality excludes the value (parity with Kotlin); the real value
+    # of the first tag is 0x1664 = 5732.
     assert pkt.tags[0] == UShortTag(ECTagName.EC_TAG_STATS_UL_SPEED, value=1664)
     assert pkt.tags[0].get_value() == 0x1664
 

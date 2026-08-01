@@ -1,4 +1,4 @@
-"""Tests de la API Torznab (portado de ``TorznabApiTest.kt``)."""
+"""Tests for the Torznab API (ported from ``TorznabApiTest.kt``)."""
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -54,7 +54,7 @@ def test_tv_search_without_season_is_plain():
 def test_tv_search_expands_episode_formats():
     c, amule = _client()
     amule.search_files = []
-    # Registra cada query que recibe el cliente.
+    # Records each query the client receives.
     queries = []
     original = amule.search_sync
 
@@ -65,7 +65,7 @@ def test_tv_search_expands_episode_formats():
     amule.search_sync = record
     r = c.get("/api?t=tvsearch&q=show&season=1&episode=2&offset=0&limit=100")
     assert r.status_code == 200
-    # El indexador normaliza la query antes de buscar (sin signos extra aquí).
+    # The indexer normalizes the query before searching (no extra symbols here).
     assert "show S01E02" in queries
     assert "show 1x02" in queries
     assert "show 102" in queries

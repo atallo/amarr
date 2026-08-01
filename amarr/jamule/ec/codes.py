@@ -1,13 +1,13 @@
-"""Constantes y enumeraciones del protocolo EC (External Connection) de aMule.
+"""Constants and enumerations of aMule's EC (External Connection) protocol.
 
-Port directo de ``jamule/ec/Codes.kt``. Los valores numéricos se corresponden
-exactamente con los definidos por aMule en ``ECCodes.h`` / ``ECTagTypes.h``, por
-lo que **no deben modificarse** sin verificar el origen.
+Direct port of ``jamule/ec/Codes.kt``. The numeric values correspond
+exactly to those defined by aMule in ``ECCodes.h`` / ``ECTagTypes.h``, so
+they **must not be modified** without verifying the source.
 
-Nota sobre tipos: Kotlin distingue ``UByte``/``UShort``/``UInt``/``ULong`` con
-overflow controlado. En Python todos los enteros son arbitrariamente grandes,
-así que aquí guardamos los valores como ``int`` y delegamos el truncado a la
-capa de codificación (:mod:`amarr.jamule.ec.encoding`).
+Note on types: Kotlin distinguishes ``UByte``/``UShort``/``UInt``/``ULong`` with
+controlled overflow. In Python all integers are arbitrarily large,
+so here we store the values as ``int`` and delegate truncation to the
+encoding layer (:mod:`amarr.jamule.ec.encoding`).
 """
 
 from __future__ import annotations
@@ -16,13 +16,13 @@ from enum import Enum
 
 
 class ProtocolVersion(Enum):
-    """Versión del protocolo EC soportada (aMule 2.3.1 - 2.3.3)."""
+    """Supported EC protocol version (aMule 2.3.1 - 2.3.3)."""
 
     EC_CURRENT_PROTOCOL_VERSION = 0x0204
 
 
 class ECFlag(Enum):
-    """Flags de transmisión de un paquete EC."""
+    """Transmission flags of an EC packet."""
 
     EC_FLAG_ZLIB = 0x00000001
     EC_FLAG_UTF8_NUMBERS = 0x00000002
@@ -32,10 +32,10 @@ class ECFlag(Enum):
 
 
 class ECOpCode(Enum):
-    """Códigos de operación de los paquetes EC.
+    """Operation codes of the EC packets.
 
-    Solo se usan unos pocos en amarr, pero se incluyen todos para mantener la
-    paridad con la librería original y facilitar futuras ampliaciones.
+    Only a few are used in amarr, but all are included to keep
+    parity with the original library and to ease future extensions.
     """
 
     EC_OP_NOOP = 0x01
@@ -120,16 +120,16 @@ class ECOpCode(Enum):
 
     @classmethod
     def from_value(cls, value: int) -> "ECOpCode":
-        """Equivalente a ``ECOpCode.fromValue``; lanza si el código es desconocido."""
+        """Equivalent to ``ECOpCode.fromValue``; raises if the code is unknown."""
         return cls(value)
 
 
 class ECTagName(Enum):
-    """Nombres de tag del protocolo EC.
+    """EC protocol tag names.
 
-    A diferencia de :class:`ECOpCode`, un valor desconocido **no** es un error:
-    se mapea a :attr:`EC_TAG_UNKNOWN` (igual que en jamule), porque aMule puede
-    enviar tags que la librería no modela.
+    Unlike :class:`ECOpCode`, an unknown value is **not** an error:
+    it is mapped to :attr:`EC_TAG_UNKNOWN` (same as in jamule), because aMule can
+    send tags that the library does not model.
     """
 
     EC_TAG_STRING = 0x0000
@@ -268,7 +268,7 @@ class ECTagName(Enum):
 
     @classmethod
     def from_value(cls, value: int) -> "ECTagName":
-        """Igual que ``ECTagName.fromValue``: desconocido -> ``EC_TAG_UNKNOWN``."""
+        """Same as ``ECTagName.fromValue``: unknown -> ``EC_TAG_UNKNOWN``."""
         try:
             return cls(value)
         except ValueError:
@@ -291,7 +291,7 @@ class ECSearchType(Enum):
 
 
 class EcPrefs(Enum):
-    """Selector de preferencias para ``EC_OP_GET_PREFERENCES``."""
+    """Preferences selector for ``EC_OP_GET_PREFERENCES``."""
 
     EC_PREFS_CATEGORIES = 0x00000001
     EC_PREFS_GENERAL = 0x00000002
@@ -309,7 +309,7 @@ class EcPrefs(Enum):
 
 
 class ECTagType(Enum):
-    """Tipo de dato del valor de un tag."""
+    """Data type of a tag's value."""
 
     EC_TAGTYPE_UNKNOWN = 0
     EC_TAGTYPE_CUSTOM = 1
@@ -332,10 +332,10 @@ class ECTagType(Enum):
 
 
 class ECSearchFileDownloadStatus(Enum):
-    """Estado de descarga de un fichero en resultados de búsqueda."""
+    """Download status of a file in search results."""
 
-    NEW = 0  # desconocido
-    DOWNLOADED = 1  # descargado o compartido con éxito
-    QUEUED = 2  # descargando (Partfile)
-    CANCELED = 3  # cancelado
-    QUEUEDCANCELED = 4  # cancelado una vez, ahora descargando de nuevo
+    NEW = 0  # unknown
+    DOWNLOADED = 1  # successfully downloaded or shared
+    QUEUED = 2  # downloading (Partfile)
+    CANCELED = 3  # canceled
+    QUEUEDCANCELED = 4  # canceled once, now downloading again

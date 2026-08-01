@@ -1,22 +1,22 @@
-"""Hash de contraseña para autenticación EC (``jamule/auth/PasswordHasher.kt``).
+"""Password hashing for EC authentication (``jamule/auth/PasswordHasher.kt``).
 
-El algoritmo de aMule combina dos hashes MD5:
+aMule's algorithm combines two MD5 hashes:
 
-1. ``salt_hash``     = MD5( hex(salt) en MAYÚSCULAS )
-2. ``password_hash`` = MD5( password en UTF-8 )
-3. resultado         = MD5( hex(password_hash) en minúsculas
-                            + hex(salt_hash) en minúsculas )
+1. ``salt_hash``     = MD5( hex(salt) in UPPERCASE )
+2. ``password_hash`` = MD5( password in UTF-8 )
+3. result            = MD5( hex(password_hash) in lowercase
+                            + hex(salt_hash) in lowercase )
 
-.. note:: **Matiz del relleno del salt.**
+.. note:: **Nuance of the salt padding.**
 
-   jaMule usa ``ULong.toHexString()``, que **rellena con ceros a 16 dígitos**.
-   El cliente C de aMule usa ``%lX``, que **no rellena**. Para el vector de
-   prueba conocido (``salt=0x55099a4aea510c43``) ambos coinciden porque el salt
-   ya ocupa 16 dígitos. Reproducimos el comportamiento de jaMule
-   (``format(salt, '016X')``) para mantener paridad bit a bit con la librería
-   original y con sus tests; si en algún caso el salt fuese < 2^60 el resultado
-   podría diferir del de aMule, pero jaMule (y por tanto amarr) ya asumían este
-   comportamiento.
+   jaMule uses ``ULong.toHexString()``, which **zero-pads to 16 digits**.
+   aMule's C client uses ``%lX``, which does **not** pad. For the known test
+   vector (``salt=0x55099a4aea510c43``) both match because the salt
+   already takes 16 digits. We reproduce jaMule's behavior
+   (``format(salt, '016X')``) to keep bit-for-bit parity with the original
+   library and its tests; if in some case the salt were < 2^60 the result
+   could differ from aMule's, but jaMule (and therefore amarr) already assumed this
+   behavior.
 """
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ import hashlib
 
 
 def hash_password(password: str, salt: int) -> bytes:
-    """Devuelve el hash de 16 bytes que aMule espera en EC_TAG_PASSWD_HASH."""
+    """Returns the 16-byte hash that aMule expects in EC_TAG_PASSWD_HASH."""
     salt_hex_upper = format(salt & 0xFFFFFFFFFFFFFFFF, "016X")
     salt_hash = hashlib.md5(salt_hex_upper.encode("ascii")).digest()
 

@@ -1,4 +1,4 @@
-"""Tests de la caché de búsquedas (SearchCache) y su uso desde los indexers."""
+"""Tests for the search cache (SearchCache) and its use from the indexers."""
 import amarr.cache as cache_mod
 from amarr.cache import SearchCache
 from amarr.ed2k import SearchResult
@@ -44,7 +44,7 @@ def test_miss_returns_none(tmp_path):
 def test_namespaced_by_backend(tmp_path):
     cache = SearchCache(str(tmp_path), 3600)
     cache.put("kad", "q", [_sf("k.mkv")])
-    assert cache.get("ed2k", "q") is None  # otro motor, misma query -> miss
+    assert cache.get("ed2k", "q") is None  # different engine, same query -> miss
     assert cache.get("kad", "q") is not None
 
 
@@ -64,12 +64,12 @@ def test_expired_entry_is_a_miss(tmp_path, monkeypatch):
     clock = [1000.0]
     monkeypatch.setattr(cache_mod.time, "time", lambda: clock[0])
     cache.put("kad", "q", [_sf()])
-    assert cache.get("kad", "q") is not None  # dentro del TTL
-    clock[0] += 11  # supera el TTL de 10 s
+    assert cache.get("kad", "q") is not None  # within the TTL
+    clock[0] += 11  # exceeds the 10 s TTL
     assert cache.get("kad", "q") is None
 
 
-# --- uso desde el indexer -----------------------------------------------------
+# --- use from the indexer -----------------------------------------------------
 
 
 def test_indexer_reuses_cache_on_repeated_search(tmp_path):
@@ -82,8 +82,8 @@ def test_indexer_reuses_cache_on_repeated_search(tmp_path):
     cache = SearchCache(str(tmp_path), ttl_seconds=3600)
     ix = Ed2kServerIndexer(search_fn=engine, cache=cache)
     ix.search("ubuntu", 0, 100, [])
-    ix.search("ubuntu", 0, 100, [])  # 2ª vez: debe servirse de la caché
-    assert calls == ["ubuntu"]  # el motor solo se invocó una vez
+    ix.search("ubuntu", 0, 100, [])  # 2nd time: must be served from the cache
+    assert calls == ["ubuntu"]  # the engine was invoked only once
 
 
 def test_indexer_does_not_cache_errors(tmp_path):
@@ -96,5 +96,5 @@ def test_indexer_does_not_cache_errors(tmp_path):
     cache = SearchCache(str(tmp_path), ttl_seconds=3600)
     ix = Ed2kServerIndexer(search_fn=boom, cache=cache)
     ix.search("x", 0, 100, [])
-    ix.search("x", 0, 100, [])  # el error no se cachea -> se reintenta
+    ix.search("x", 0, 100, [])  # the error is not cached -> it is retried
     assert len(calls) == 2

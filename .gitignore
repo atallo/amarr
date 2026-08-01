@@ -9,7 +9,7 @@ dist/
 .idea/
 .vscode/
 
-# Base de datos SQLite local (se genera en /config en ejecución).
+# Local SQLite database (generated in /config at runtime).
 *.db
 *.db-wal
 *.db-shm

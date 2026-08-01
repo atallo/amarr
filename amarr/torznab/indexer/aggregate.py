@@ -1,8 +1,8 @@
-"""Indexador agregador: combina los resultados de varios motores (endpoint ``all``).
+"""Aggregator indexer: combines the results of several engines (``all`` endpoint).
 
-Ejecuta los indexers activos en paralelo (cada búsqueda es bloqueante), deduplica
-por la URL del enclosure (el magnet, determinista por hash/nombre/tamaño) y
-pagina, igual que la fusión multi-consulta de ``torznab/api.py:_perform_queries``.
+Runs the active indexers in parallel (each search is blocking), deduplicates
+by the enclosure URL (the magnet, deterministic by hash/name/size) and
+paginates, just like the multi-query merge in ``torznab/api.py:_perform_queries``.
 """
 from __future__ import annotations
 
@@ -16,9 +16,9 @@ from .base import Indexer, _empty_query_response
 
 
 class AggregateIndexer(Indexer):
-    """Combina los resultados de varios indexers en un único feed."""
+    """Combines the results of several indexers into a single feed."""
 
-    server_title = "Amarr (todos)"
+    server_title = "Amarr (all)"
 
     def __init__(
         self, indexers: Sequence[Indexer], logger: Optional[logging.Logger] = None
@@ -32,8 +32,8 @@ class AggregateIndexer(Indexer):
         if not query.strip():
             return _empty_query_response()
 
-        # Se pide a cada motor desde 0 hasta offset+limit, se fusiona, se
-        # deduplica por URL y se pagina (mismo patrón que la búsqueda TV).
+        # Each engine is queried from 0 up to offset+limit, merged,
+        # deduplicated by URL and paginated (same pattern as the TV search).
         raw_limit = offset + limit
         feeds: List[Feed] = []
         with ThreadPoolExecutor(max_workers=max(1, len(self._indexers))) as executor:
@@ -41,12 +41,12 @@ class AggregateIndexer(Indexer):
                 executor.submit(ix.search, query, 0, raw_limit, cat, base_url)
                 for ix in self._indexers
             ]
-            # Orden de envío (determinista): el primer motor activo tiene
-            # prioridad en la deduplicación.
+            # Submission order (deterministic): the first active engine has
+            # priority in the deduplication.
             for ix, future in zip(self._indexers, futures):
                 try:
                     feeds.append(future.result())
-                except Exception as exc:  # noqa: BLE001 - un motor no tumba al resto
+                except Exception as exc:  # noqa: BLE001 - one engine doesn't take down the rest
                     self._log.warning("Indexer %s failed: %s", type(ix).__name__, exc)
 
         seen = set()
@@ -66,4 +66,4 @@ class AggregateIndexer(Indexer):
         )
 
     def _raw_search(self, query: str) -> List[SearchFile]:  # pragma: no cover
-        raise NotImplementedError("AggregateIndexer sobrescribe search()")
+        raise NotImplementedError("AggregateIndexer overrides search()")

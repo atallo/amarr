@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""CLI de busqueda en un servidor eD2k. Toda la logica vive en el paquete `ed2k`."""
+"""eD2k server search CLI. All the logic lives in the `ed2k` package."""
 import argparse
 import logging
 import sys
@@ -10,29 +10,29 @@ from amarr.ed2k import ServerSearch, print_results, setup_utf8_output
 
 def main():
     ap = argparse.ArgumentParser(
-        description="Micro-cliente eD2k (eDonkey2000) 100% Python: busca por palabra "
-                    "clave en un servidor.",
-        epilog="Ejemplos:\n"
+        description="eD2k (eDonkey2000) micro-client, 100% Python: keyword "
+                    "search on a server.",
+        epilog="Examples:\n"
                "  python ed2k_search.py ubuntu\n"
                '  python ed2k_search.py "ubuntu 24.04 amd64" -n 20\n'
                "  python ed2k_search.py debian -s 45.82.80.155:5687\n"
-               "  python ed2k_search.py debian --highid        # HighID, puerto aleatorio\n"
-               "  python ed2k_search.py debian --highid 4662    # HighID en el puerto 4662\n",
+               "  python ed2k_search.py debian --highid        # HighID, random port\n"
+               "  python ed2k_search.py debian --highid 4662    # HighID on port 4662\n",
         formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("query", nargs="?", default=None, help="texto a buscar")
+    ap.add_argument("query", nargs="?", default=None, help="text to search for")
     ap.add_argument("-s", "--server", default="45.82.80.155:5687",
-                    help="servidor eD2k host:puerto (def. 45.82.80.155:5687)")
+                    help="eD2k server host:port (default 45.82.80.155:5687)")
     ap.add_argument("-n", "--max", type=int, default=50,
-                    help="maximo de resultados a mostrar (def. 50)")
+                    help="maximum number of results to show (default 50)")
     ap.add_argument("-t", "--timeout", type=float, default=15.0,
-                    help="timeout de socket en segundos (def. 15)")
-    ap.add_argument("--highid", nargs="?", const=0, type=int, default=None, metavar="PUERTO",
-                    help="intentar HighID: abre el puerto (UPnP) y escucha la conexion de "
-                         "verificacion del servidor. Sin valor usa un puerto aleatorio; "
-                         "o indica uno, p.ej. --highid 4662")
+                    help="socket timeout in seconds (default 15)")
+    ap.add_argument("--highid", nargs="?", const=0, type=int, default=None, metavar="PORT",
+                    help="attempt HighID: open the port (UPnP) and listen for the server's "
+                         "verification connection. Without a value it uses a random port; "
+                         "or specify one, e.g. --highid 4662")
     ap.add_argument("--no-upnp", action="store_true",
-                    help="con --highid, no intentar abrir el puerto por UPnP")
-    ap.add_argument("-v", "--verbose", action="store_true", help="traza de paquetes")
+                    help="with --highid, don't try to open the port via UPnP")
+    ap.add_argument("-v", "--verbose", action="store_true", help="packet trace")
     args = ap.parse_args()
 
     setup_utf8_output()

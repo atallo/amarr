@@ -1,9 +1,9 @@
-"""Router FastAPI que emula la WebAPI de qBittorrent (``TorrentApi.kt``).
+"""FastAPI router that emulates the qBittorrent WebAPI (``TorrentApi.kt``).
 
-Sonarr/Radarr usan estas rutas creyendo que hablan con qBittorrent v2.8.19.
-Los handlers son **síncronos** (``def``) a propósito: el cliente aMule es
-bloqueante (sockets), así que Starlette los ejecuta en su threadpool y no
-bloquean el bucle de eventos.
+Sonarr/Radarr use these routes believing they talk to qBittorrent v2.8.19.
+The handlers are **synchronous** (``def``) on purpose: the aMule client is
+blocking (sockets), so Starlette runs them in its threadpool and they don't
+block the event loop.
 """
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ def build_torrent_router(
 
     @router.get("/api/v2/app/webapiVersion")
     def webapi_version() -> PlainTextResponse:
-        # Emula la versión de la API de qBittorrent 2.8.19.
+        # Emulates the qBittorrent 2.8.19 API version.
         return PlainTextResponse("2.8.19")
 
     @router.post("/api/v2/auth/login")
@@ -39,7 +39,7 @@ def build_torrent_router(
         username: Optional[str] = Form(default=None),
         password: Optional[str] = Form(default=None),
     ) -> PlainTextResponse:
-        # TODO: implementar algún tipo de autenticación (igual que el original).
+        # TODO: implement some kind of authentication (same as the original).
         return PlainTextResponse("Ok.")
 
     @router.get("/api/v2/app/preferences")

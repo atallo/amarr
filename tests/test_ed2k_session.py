@@ -1,16 +1,16 @@
-"""Tests de Ed2kServerSession: conexión persistente, reconexión e idle."""
+"""Tests for Ed2kServerSession: persistent connection, reconnection and idle."""
 import socket
 import struct
 
 from amarr.ed2k.server import OP_IDCHANGE, OP_SEARCHRESULT
 from amarr.ed2k_session import Ed2kServerSession
 
-# Payload de OP_SEARCHRESULT con 0 resultados (count = 0).
+# OP_SEARCHRESULT payload with 0 results (count = 0).
 _NO_RESULTS = struct.pack("<I", 0)
 
 
 class FakeConn:
-    """Conexión eD2k de mentira: encola IDCHANGE al loguear y SEARCHRESULT al buscar."""
+    """Fake eD2k connection: queues IDCHANGE on login and SEARCHRESULT on search."""
 
     def __init__(self):
         self.logins = 0
@@ -51,8 +51,8 @@ def test_reuses_connection_single_login():
     s.search("a")
     s.search("b")
     s.search("c")
-    assert len(conns) == 1  # una sola conexión
-    assert conns[0].logins == 1  # un solo login para 3 búsquedas
+    assert len(conns) == 1  # a single connection
+    assert conns[0].logins == 1  # a single login for 3 searches
     assert conns[0].searches == ["a", "b", "c"]
     s.close()
 
@@ -62,7 +62,7 @@ def test_reconnects_after_connection_error():
 
     class Conn(FakeConn):
         def search(self, query):
-            if len(conns) == 1:  # la primera conexión está "muerta"
+            if len(conns) == 1:  # the first connection is "dead"
                 raise ConnectionError("dead")
             super().search(query)
 
@@ -72,7 +72,7 @@ def test_reconnects_after_connection_error():
         return c
 
     s = _session(factory)
-    s.search("a")  # 1ª conn falla -> reconecta -> 2ª OK
+    s.search("a")  # 1st conn fails -> reconnects -> 2nd OK
     assert len(conns) == 2
     assert conns[0].closed
     s.close()
@@ -89,9 +89,9 @@ def test_idle_close_then_reconnect():
     s = _session(factory)
     s.search("a")
     assert len(conns) == 1
-    s._idle_close()  # simula el disparo del timer de inactividad
+    s._idle_close()  # simulates the idle timer firing
     assert conns[0].closed
-    s.search("b")  # debe reconectar
+    s.search("b")  # must reconnect
     assert len(conns) == 2
     s.close()
 
@@ -107,6 +107,6 @@ def test_idle_zero_closes_after_each_search():
     s = _session(factory, idle_seconds=0)
     s.search("a")
     s.search("b")
-    assert len(conns) == 2  # sin persistencia: una conexión por búsqueda
+    assert len(conns) == 2  # no persistence: one connection per search
     assert conns[0].closed and conns[1].closed
     s.close()

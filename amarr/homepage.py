@@ -1,10 +1,10 @@
-"""Página de inicio (``GET /``): documenta los endpoints activos con ejemplos.
+"""Home page (``GET /``): documents the active endpoints with examples.
 
-Genera una página HTML minimalista (estilo Craigslist: plana, sans-serif,
-enlaces azul/morado), responsive (móvil y PC). Solo lista los motores de
-búsqueda **realmente activos** (según ``AMARR_SEARCH_BACKENDS``); los no
-activados no aparecen. Cada endpoint incluye un ejemplo de petición/respuesta
-plegable, al estilo de las páginas de ayuda de los servicios web SOAP de .NET.
+Generates a minimalist HTML page (Craigslist style: flat, sans-serif,
+blue/purple links), responsive (mobile and desktop). It only lists the
+**actually active** search engines (according to ``AMARR_SEARCH_BACKENDS``); the
+inactive ones don't appear. Each endpoint includes a collapsible
+request/response example, in the style of the .NET SOAP web service help pages.
 """
 from __future__ import annotations
 
@@ -19,82 +19,82 @@ from .config import SEARCH_BACKENDS
 from .ed2k import human_size
 from .magnet import MagnetLink
 
-# Nombre legible y descripción de cada motor.
+# Readable name and description of each engine.
 _BACKEND_INFO = {
-    "amule": ("aMule", "Búsqueda a través de un aMule externo (protocolo EC)."),
+    "amule": ("aMule", "Search through an external aMule (EC protocol)."),
     "ed2k": (
-        "Servidor eD2k",
-        "Búsqueda directa en un servidor eD2k (implementada por amarr).",
+        "eD2k server",
+        "Direct search on an eD2k server (implemented by amarr).",
     ),
     "kad": (
-        "Red Kad",
-        "Búsqueda serverless en la red Kad (implementada por amarr).",
+        "Kad network",
+        "Serverless search on the Kad network (implemented by amarr).",
     ),
 }
 
-# API qBittorrent emulada (la consume Sonarr/Radarr como cliente de descarga).
-# Cada entrada: (método, ruta, descripción, ejemplo petición/respuesta).
-# Debe reflejar las rutas reales de ``torrent/api.py`` (hay un test que lo verifica).
+# Emulated qBittorrent API (consumed by Sonarr/Radarr as a download client).
+# Each entry: (method, path, description, request/response example).
+# It must mirror the real routes in ``torrent/api.py`` (a test verifies this).
 _QBIT_ENDPOINTS = [
     (
-        "GET", "/api/v2/app/webapiVersion", "Versión de la WebAPI emulada (2.8.19).",
+        "GET", "/api/v2/app/webapiVersion", "Emulated WebAPI version (2.8.19).",
         "GET /api/v2/app/webapiVersion\n\n"
         "HTTP/1.1 200 OK\nContent-Type: text/plain\n\n2.8.19",
     ),
     (
-        "POST", "/api/v2/auth/login", "Login (siempre aceptado; sin autenticación real).",
+        "POST", "/api/v2/auth/login", "Login (always accepted; no real authentication).",
         "POST /api/v2/auth/login\nContent-Type: application/x-www-form-urlencoded\n\n"
         "username=admin&password=secret\n\nHTTP/1.1 200 OK\n\nOk.",
     ),
     (
-        "GET", "/api/v2/app/preferences", "Preferencias de qBittorrent (incluye save_path).",
+        "GET", "/api/v2/app/preferences", "qBittorrent preferences (includes save_path).",
         "GET /api/v2/app/preferences\n\n"
         "HTTP/1.1 200 OK\nContent-Type: application/json\n\n"
         '{"save_path": "/finished", "max_active_downloads": 20, ...}',
     ),
     (
-        "POST", "/api/v2/torrents/add", "Añade una descarga desde un magnet de amarr.",
+        "POST", "/api/v2/torrents/add", "Adds a download from an amarr magnet.",
         "POST /api/v2/torrents/add\nContent-Type: application/x-www-form-urlencoded\n\n"
         "urls=magnet:?xt=urn:btih:...&category=radarr\n\nHTTP/1.1 200 OK\n\nOk.",
     ),
     (
-        "POST", "/api/v2/torrents/createCategory", "Crea una categoría.",
+        "POST", "/api/v2/torrents/createCategory", "Creates a category.",
         "POST /api/v2/torrents/createCategory\n\n"
         "category=radarr&savePath=/finished\n\nHTTP/1.1 200 OK\n\nOk.",
     ),
     (
-        "GET", "/api/v2/torrents/categories", "Lista las categorías.",
+        "GET", "/api/v2/torrents/categories", "Lists the categories.",
         "GET /api/v2/torrents/categories\n\n"
         "HTTP/1.1 200 OK\nContent-Type: application/json\n\n"
         '{"radarr": {"name": "radarr", "savePath": "/finished"}}',
     ),
     (
-        "GET", "/api/v2/torrents/info", "Lista las descargas (estado, progreso, ETA…).",
+        "GET", "/api/v2/torrents/info", "Lists the downloads (state, progress, ETA…).",
         "GET /api/v2/torrents/info?category=radarr\n\n"
         "HTTP/1.1 200 OK\nContent-Type: application/json\n\n"
         '[{"hash": "0320c4...", "name": "ubuntu...iso", "progress": 0.5,\n'
         '  "state": "downloading", "eta": 1200, "save_path": "/finished"}]',
     ),
     (
-        "POST", "/api/v2/torrents/delete", "Borra descargas (y, opcionalmente, sus ficheros).",
+        "POST", "/api/v2/torrents/delete", "Deletes downloads (and, optionally, their files).",
         "POST /api/v2/torrents/delete\n\n"
         "hashes=0320c4...&deleteFiles=true\n\nHTTP/1.1 200 OK\n\nOk.",
     ),
     (
-        "GET", "/api/v2/torrents/files", "Ficheros de una descarga.",
+        "GET", "/api/v2/torrents/files", "Files of a download.",
         "GET /api/v2/torrents/files?hash=0320c4...\n\n"
         "HTTP/1.1 200 OK\nContent-Type: application/json\n\n"
         '[{"name": "ubuntu-24.04-desktop-amd64.iso"}]',
     ),
     (
-        "GET", "/api/v2/torrents/properties", "Propiedades de una descarga.",
+        "GET", "/api/v2/torrents/properties", "Properties of a download.",
         "GET /api/v2/torrents/properties?hash=0320c4...\n\n"
         "HTTP/1.1 200 OK\nContent-Type: application/json\n\n"
         '{"hash": "0320c4...", "save_path": "/finished", "seeding_time": 1}',
     ),
 ]
 
-# Ejemplo del endpoint de estado.
+# Example of the status endpoint.
 _STATUS_EXAMPLE = (
     "GET /status\n\n"
     "HTTP/1.1 200 OK\nContent-Type: application/json\n\n"
@@ -131,7 +131,7 @@ summary:hover { text-decoration: underline; }
 """.strip()
 
 
-def _example(raw: str, label: str = "ejemplo de petición/respuesta") -> str:
+def _example(raw: str, label: str = "request/response example") -> str:
     return (
         f"<details><summary>{html.escape(label)}</summary>"
         f"<pre>{html.escape(raw)}</pre></details>"
@@ -139,7 +139,7 @@ def _example(raw: str, label: str = "ejemplo de petición/respuesta") -> str:
 
 
 def _torznab_example(base: str, name: str) -> str:
-    host = base.split("//", 1)[-1] or "tu-servidor:8080"
+    host = base.split("//", 1)[-1] or "your-server:8080"
     raw = (
         f"GET /indexer/{name}/api?t=search&q=ubuntu HTTP/1.1\n"
         f"Host: {host}\n\n"
@@ -172,10 +172,10 @@ def _endpoint_block(base: str, name: str, title: str, desc: str) -> str:
         f"<b>{html.escape(title)}</b> &mdash; {html.escape(desc)}<br>"
         f"<code>{html.escape(api)}</code>"
         "<ul>"
-        f'<li><a href="{api_attr}?t=caps">caps</a> &mdash; capacidades del indexador</li>'
-        f'<li><a href="{api_attr}?t=search&amp;q=ubuntu">search</a> &mdash; buscar &laquo;ubuntu&raquo;</li>'
+        f'<li><a href="{api_attr}?t=caps">caps</a> &mdash; indexer capabilities</li>'
+        f'<li><a href="{api_attr}?t=search&amp;q=ubuntu">search</a> &mdash; search &laquo;ubuntu&raquo;</li>'
         f'<li><a href="{api_attr}?t=tvsearch&amp;q=the+expanse&amp;season=1&amp;episode=1">'
-        "tvsearch</a> &mdash; serie, temporada 1 episodio 1</li>"
+        "tvsearch</a> &mdash; TV show, season 1 episode 1</li>"
         "</ul>"
         f"{_torznab_example(base, name)}"
         "</div>"
@@ -194,7 +194,7 @@ def _qbit_section() -> str:
 
 
 def render_home(base: str, backends: List[str]) -> str:
-    """Genera el HTML de la página de inicio para los motores ``backends``."""
+    """Generates the HTML of the home page for the ``backends`` engines."""
     active = [b for b in SEARCH_BACKENDS if b in backends]
 
     blocks = [_endpoint_block(base, name, *_BACKEND_INFO[name]) for name in active]
@@ -203,20 +203,20 @@ def render_home(base: str, backends: List[str]) -> str:
             _endpoint_block(
                 base,
                 "all",
-                "Todos (all)",
-                "Combina los resultados de todos los motores activos.",
+                "All (all)",
+                "Combines the results of all active engines.",
             )
         )
     endpoints_html = "\n".join(blocks) or (
-        '<p class="muted">No hay motores de búsqueda activos.</p>'
+        '<p class="muted">No active search engines.</p>'
     )
 
-    # Nota del endpoint heredado /api (solo tiene sentido si hay motores).
+    # Note about the legacy /api endpoint (only makes sense if there are engines).
     legacy_note = ""
     if active:
         legacy_note = (
-            f'<p class="muted">También responde en <code>{html.escape(base + "/api")}</code> '
-            "(heredado): equivale a <code>amule</code> si está activo; si no, a "
+            f'<p class="muted">Also responds at <code>{html.escape(base + "/api")}</code> '
+            "(legacy): equivalent to <code>amule</code> if active; otherwise "
             "<code>all</code>.</p>"
         )
 
@@ -224,7 +224,7 @@ def render_home(base: str, backends: List[str]) -> str:
     status_attr = html.escape(f"{base}/status", quote=True)
 
     return f"""<!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -234,31 +234,31 @@ def render_home(base: str, backends: List[str]) -> str:
 <body>
 <div class="container">
   <h1>amarr</h1>
-  <p class="sub">Conector aMule para Sonarr/Radarr &mdash; indexador Torznab y cliente qBittorrent.</p>
+  <p class="sub">aMule connector for Sonarr/Radarr &mdash; Torznab indexer and qBittorrent client.</p>
 
-  <h2>Indexadores de búsqueda (Torznab)</h2>
-  <p class="muted">Endpoints activos según tu configuración. En Sonarr/Radarr, añade uno
-  como indexador Torznab usando su URL.</p>
+  <h2>Search indexers (Torznab)</h2>
+  <p class="muted">Active endpoints according to your configuration. In Sonarr/Radarr, add one
+  as a Torznab indexer using its URL.</p>
   {endpoints_html}
   {legacy_note}
 
-  <h2>API qBittorrent (cliente de descarga)</h2>
-  <p class="muted">amarr emula qBittorrent 2.8.19. Sonarr/Radarr usan estas rutas
-  automáticamente al añadirlo como cliente de descarga; no hace falta llamarlas a mano.
-  La descarga siempre la realiza aMule.</p>
+  <h2>qBittorrent API (download client)</h2>
+  <p class="muted">amarr emulates qBittorrent 2.8.19. Sonarr/Radarr use these routes
+  automatically when you add it as a download client; you don't need to call them by hand.
+  The download is always performed by aMule.</p>
   {_qbit_section()}
 
-  <h2>Otros endpoints</h2>
+  <h2>Other endpoints</h2>
   <ul class="api">
     <li class="endpoint"><span class="m">GET</span> <a href="{home_attr}">/</a> &mdash;
-        esta página (HTML).</li>
+        this page (HTML).</li>
     <li class="endpoint"><span class="m">GET</span> <a href="{status_attr}">/status</a> &mdash;
-        estado de la conexión con aMule (JSON).{_example(_STATUS_EXAMPLE)}</li>
+        aMule connection status (JSON).{_example(_STATUS_EXAMPLE)}</li>
     <li class="endpoint"><span class="m">GET</span> <code>/openapi.json</code> &mdash;
-        esquema OpenAPI (autogenerado por FastAPI).</li>
+        OpenAPI schema (auto-generated by FastAPI).</li>
   </ul>
 
-  <p class="foot muted">amarr &middot; busca por aMule, eD2k o Kad &middot; descarga por aMule</p>
+  <p class="foot muted">amarr &middot; search via aMule, eD2k or Kad &middot; download via aMule</p>
 </div>
 </body>
 </html>"""
@@ -267,25 +267,25 @@ def render_home(base: str, backends: List[str]) -> str:
 def render_details(
     hash_hex: str, name: str, size: int, seeders: int, peers: int
 ) -> str:
-    """Página de detalles de un resultado: datos básicos + enlace ed2k + magnet."""
-    name = name or "(sin nombre)"
+    """Details page for a result: basic data + ed2k link + magnet."""
+    name = name or "(no name)"
     try:
         raw_hash = bytes.fromhex(hash_hex)
     except ValueError:
         raw_hash = b""
     ed2k = f"ed2k://|file|{name}|{size}|{hash_hex}|/"
-    # Magnet eD2k estándar (urn:ed2k) — el "real", válido en clientes eD2k.
+    # Standard eD2k magnet (urn:ed2k) — the "real" one, valid in eD2k clients.
     ed2k_magnet = (
         f"magnet:?xt=urn:ed2k:{hash_hex.upper()}&dn={quote(name)}&xl={size}"
         if raw_hash
         else ""
     )
-    # Magnet sintético (urn:btih) que amarr entrega a Sonarr/Radarr.
+    # Synthetic magnet (urn:btih) that amarr hands to Sonarr/Radarr.
     magnet = str(MagnetLink.for_amarr(raw_hash, name, size)) if raw_hash else ""
     size_h = human_size(size) if size else "?"
 
     return f"""<!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -295,28 +295,28 @@ def render_details(
 <body>
 <div class="container">
   <h1>{html.escape(name)}</h1>
-  <p class="sub">{html.escape(size_h)} &middot; {seeders} seeders &middot; {peers} fuentes</p>
+  <p class="sub">{html.escape(size_h)} &middot; {seeders} seeders &middot; {peers} sources</p>
 
-  <h2>Datos</h2>
+  <h2>Info</h2>
   <ul>
-    <li>Tamaño: {html.escape(size_h)} ({size} bytes)</li>
-    <li>Hash eD2k: <code>{html.escape(hash_hex)}</code></li>
-    <li>Fuentes completas (seeders): {seeders}</li>
-    <li>Fuentes totales (peers): {peers}</li>
+    <li>Size: {html.escape(size_h)} ({size} bytes)</li>
+    <li>eD2k hash: <code>{html.escape(hash_hex)}</code></li>
+    <li>Complete sources (seeders): {seeders}</li>
+    <li>Total sources (peers): {peers}</li>
   </ul>
 
-  <h2>Enlace eD2k</h2>
-  <p><a href="{html.escape(ed2k, quote=True)}">abrir en eMule/aMule</a></p>
+  <h2>eD2k link</h2>
+  <p><a href="{html.escape(ed2k, quote=True)}">open in eMule/aMule</a></p>
   <pre>{html.escape(ed2k)}</pre>
 
-  <h2>Magnet eD2k</h2>
-  <p><a href="{html.escape(ed2k_magnet, quote=True)}">abrir magnet eD2k</a></p>
+  <h2>eD2k Magnet</h2>
+  <p><a href="{html.escape(ed2k_magnet, quote=True)}">open eD2k magnet</a></p>
   <pre>{html.escape(ed2k_magnet)}</pre>
 
   <h2>Fake Magnet Amarr</h2>
-  <p class="muted">Magnet sintético (<code>urn:btih</code>) que amarr entrega a
-  Sonarr/Radarr para que gestionen la descarga; la descarga real la hace aMule.</p>
-  <p><a href="{html.escape(magnet, quote=True)}">abrir magnet</a></p>
+  <p class="muted">Synthetic magnet (<code>urn:btih</code>) that amarr hands to
+  Sonarr/Radarr so they manage the download; the actual download is done by aMule.</p>
+  <p><a href="{html.escape(magnet, quote=True)}">open magnet</a></p>
   <pre>{html.escape(magnet)}</pre>
 
   <p class="foot muted"><a href="/">&larr; amarr</a></p>
@@ -326,7 +326,7 @@ def render_details(
 
 
 def build_home_router(backends: List[str]) -> APIRouter:
-    """Router con la página de inicio (``GET /``) y la de detalles (``GET /details``)."""
+    """Router with the home page (``GET /``) and the details page (``GET /details``)."""
     router = APIRouter()
 
     @router.get("/", response_class=HTMLResponse)

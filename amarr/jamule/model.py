@@ -1,14 +1,14 @@
-"""Modelos de dominio de jaMule.
+"""jaMule domain models.
 
-Traducción de ``jamule/model/*.kt`` y ``jamule/ec/tag/special/*.kt``.
+Translation of ``jamule/model/*.kt`` and ``jamule/ec/tag/special/*.kt``.
 
-En Kotlin ``AmuleFile`` y ``AmuleTransferringFile`` son *interfaces* y
-``PartFileTag`` reutiliza ``SharedFileTag`` mediante delegación
-(``AmuleFile by sharedFileTag``). En Python lo modelamos con dataclasses:
-``SharedFileTag`` contiene todos los campos de ``AmuleFile`` y ``PartFileTag``
-hereda de ella añadiendo los campos de ``AmuleTransferringFile``. Así una
-``PartFileTag`` es tanto un fichero compartido como un fichero en transferencia,
-igual que en el original.
+In Kotlin ``AmuleFile`` and ``AmuleTransferringFile`` are *interfaces* and
+``PartFileTag`` reuses ``SharedFileTag`` through delegation
+(``AmuleFile by sharedFileTag``). In Python we model it with dataclasses:
+``SharedFileTag`` contains all the fields of ``AmuleFile`` and ``PartFileTag``
+inherits from it adding the fields of ``AmuleTransferringFile``. This way a
+``PartFileTag`` is both a shared file and a transferring file,
+just like in the original.
 """
 from __future__ import annotations
 
@@ -27,9 +27,9 @@ from .ec.tag import (
 
 
 class FileStatus(Enum):
-    """Estado de un part-file en aMule.
+    """State of a part-file in aMule.
 
-    Los nombres en minúscula coinciden con el valor textual que envía aMule.
+    The lowercase names match the textual value that aMule sends.
     """
 
     READY = 0
@@ -50,10 +50,10 @@ class FileStatus(Enum):
 
 
 class DownloadCommand(Enum):
-    """Comandos aplicables a una descarga.
+    """Commands applicable to a download.
 
-    Cada comando se asocia al ``ECOpCode`` que se usa como *opcode* del paquete
-    de petición.
+    Each command is associated with the ``ECOpCode`` used as the *opcode* of the
+    request packet.
     """
 
     SWAP_A4AF_THIS = ECOpCode.EC_OP_PARTFILE_SWAP_A4AF_THIS
@@ -67,7 +67,7 @@ class DownloadCommand(Enum):
 
 @dataclass
 class AmuleCategory:
-    """Categoría de aMule (``jamule/model/AmuleCategory.kt``)."""
+    """aMule category (``jamule/model/AmuleCategory.kt``)."""
 
     id: int
     name: str
@@ -78,14 +78,14 @@ class AmuleCategory:
 
 
 def _to_signed_byte(value: int) -> int:
-    """Convierte un ``UByte`` (0..255) al rango con signo de Kotlin (-128..127)."""
+    """Converts a ``UByte`` (0..255) to Kotlin's signed range (-128..127)."""
     return value - 256 if value >= 128 else value
 
 
-# aMule omite tags según el estado del fichero o la versión (p. ej.
-# HASHED_PART_COUNT en part-files recién añadidos); estos accesores devuelven un
-# valor por defecto en vez de asumir que el tag siempre llega — un tag ausente
-# tumbaba /api/v2/torrents/info con un 500 (AttributeError sobre None).
+# aMule omits tags depending on the file state or version (e.g.
+# HASHED_PART_COUNT in freshly added part-files); these accessors return a
+# default value instead of assuming the tag always arrives — a missing tag
+# took down /api/v2/torrents/info with a 500 (AttributeError on None).
 
 
 def _byte_or(subtags: List[Tag], name: ECTagName, default: int = 0) -> int:
@@ -110,9 +110,9 @@ def _long_or(subtags: List[Tag], name: ECTagName, default: int = 0) -> int:
 
 @dataclass
 class SharedFileTag:
-    """Fichero compartido conocido por aMule.
+    """Shared file known to aMule.
 
-    Equivale a la interfaz ``AmuleFile`` + el parser ``SharedFileTag``.
+    Equivalent to the ``AmuleFile`` interface + the ``SharedFileTag`` parser.
     """
 
     file_hash_hex_string: Optional[str]
@@ -185,10 +185,10 @@ class SharedFileTag:
 
 @dataclass
 class PartFileTag(SharedFileTag):
-    """Fichero en transferencia.
+    """File being transferred.
 
-    Equivale a ``AmuleTransferringFile`` (que extiende ``AmuleFile``). Hereda de
-    :class:`SharedFileTag` y añade los campos específicos de descarga.
+    Equivalent to ``AmuleTransferringFile`` (which extends ``AmuleFile``). Inherits
+    from :class:`SharedFileTag` and adds the download-specific fields.
     """
 
     part_met_id: Optional[int] = None
@@ -226,7 +226,7 @@ class PartFileTag(SharedFileTag):
         speed = num(ECTagName.EC_TAG_PARTFILE_SPEED)
 
         return PartFileTag(
-            # Campos heredados de SharedFileTag.
+            # Fields inherited from SharedFileTag.
             file_hash_hex_string=base.file_hash_hex_string,
             file_name=base.file_name,
             file_path=base.file_path,
@@ -245,7 +245,7 @@ class PartFileTag(SharedFileTag):
             get_on_queue=base.get_on_queue,
             get_comment=base.get_comment,
             get_rating=base.get_rating,
-            # Campos propios de AmuleTransferringFile.
+            # Fields specific to AmuleTransferringFile.
             part_met_id=part_met.get_short() if part_met is not None else None,
             size_xfer=size_xfer.get_long() if size_xfer is not None else None,
             size_done=size_done.get_long() if size_done is not None else None,
@@ -299,6 +299,6 @@ class PartFileTag(SharedFileTag):
         )
 
 
-# Alias de tipo: en amarr se usan los nombres de interfaz.
+# Type aliases: amarr uses the interface names.
 AmuleFile = SharedFileTag
 AmuleTransferringFile = PartFileTag

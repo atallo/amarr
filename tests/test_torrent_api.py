@@ -1,6 +1,4 @@
-"""Tests de la API qBittorrent (portado de ``TorrentApiTest.kt``)."""
-import json
-
+"""Tests for the qBittorrent API (ported from ``TorrentApiTest.kt``)."""
 from fastapi.testclient import TestClient
 
 from amarr.jamule.model import DownloadCommand
@@ -145,15 +143,15 @@ def test_get_info_serializes_ratio_and_seeding_time():
     r = c.get("/api/v2/torrents/info")
     assert r.status_code == 200
     torrent = r.json()[0]
-    # kotlinx serializaba ratio (Double) como "1.0" y seeding_time (Int) como "1".
+    # kotlinx serialized ratio (Double) as "1.0" and seeding_time (Int) as "1".
     assert torrent["ratio"] == 1.0
     assert torrent["seeding_time"] == 1
 
 
 def test_get_info_handles_zero_size_without_crashing():
-    """Regresión: un part-file con size_full=0 no debe provocar un 500.
+    """Regression: a part-file with size_full=0 must not cause a 500.
 
-    Antes se calculaba progress = size_done / size_full sin proteger el cero.
+    Previously progress = size_done / size_full was computed without guarding zero.
     """
     amule = FakeAmuleClient()
     amule.download_queue = [

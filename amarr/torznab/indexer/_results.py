@@ -1,8 +1,8 @@
-"""Adaptador de los resultados de la librería ``ed2k`` al modelo interno.
+"""Adapter from the ``ed2k`` library results to the internal model.
 
-Los motores ed2k/kad devuelven :class:`amarr.ed2k.SearchResult`; el pipeline de
-:class:`Indexer` opera sobre :class:`SearchFile`. Aquí se traduce uno a otro
-(``sources``/``complete_sources`` pueden venir a ``None``, se normalizan a 0).
+The ed2k/kad engines return :class:`amarr.ed2k.SearchResult`; the
+:class:`Indexer` pipeline operates on :class:`SearchFile`. Here one is translated
+to the other (``sources``/``complete_sources`` may come as ``None``, normalized to 0).
 """
 from __future__ import annotations
 

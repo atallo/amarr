@@ -1,12 +1,12 @@
-"""Modelos de la API qBittorrent que amarr emula (``amarr/torrent/model/*.kt``).
+"""Models of the qBittorrent API that amarr emulates (``amarr/torrent/model/*.kt``).
 
-Sonarr/Radarr creen estar hablando con qBittorrent v2.8.19, así que estos
-modelos reproducen exactamente los nombres de campo (snake_case) y los valores
-por defecto que qBittorrent devuelve. Kotlin serializaba con
-``encodeDefaults=true``; pydantic emite todos los campos por defecto, con lo que
-el JSON resultante es equivalente.
+Sonarr/Radarr believe they are talking to qBittorrent v2.8.19, so these
+models reproduce exactly the field names (snake_case) and the default
+values that qBittorrent returns. Kotlin serialized with
+``encodeDefaults=true``; pydantic emits all fields by default, so
+the resulting JSON is equivalent.
 
-``Category`` es un dataclass *frozen* (hashable) porque se guarda en conjuntos.
+``Category`` is a *frozen* dataclass (hashable) because it is stored in sets.
 """
 from __future__ import annotations
 
@@ -18,24 +18,24 @@ from pydantic import BaseModel
 
 @dataclass(frozen=True)
 class Category:
-    """Categoría de qBittorrent (nombre + ruta de guardado)."""
+    """qBittorrent category (name + save path)."""
 
     name: str
     save_path: str = ""
 
-    # qBittorrent expone el campo como ``savePath`` en JSON.
+    # qBittorrent exposes the field as ``savePath`` in JSON.
     def to_json(self) -> dict:
         return {"name": self.name, "savePath": self.save_path}
 
 
 class TorrentFile(BaseModel):
-    """Un fichero dentro de un torrent."""
+    """A file inside a torrent."""
 
     name: str
 
 
 class TorrentProperties(BaseModel):
-    """Propiedades de un torrent (subset usado por Radarr)."""
+    """Torrent properties (subset used by Radarr)."""
 
     hash: str
     save_path: str
@@ -43,7 +43,7 @@ class TorrentProperties(BaseModel):
 
 
 class TorrentState(str, Enum):
-    """Estados de torrent de qBittorrent (ver wiki WebUI-API 4.1)."""
+    """qBittorrent torrent states (see WebUI-API 4.1 wiki)."""
 
     error = "error"
     stalledDL = "stalledDL"
@@ -66,7 +66,7 @@ class TorrentState(str, Enum):
     unknown = "unknown"
 
 
-# El largo magnet_uri por defecto que usa amarr como marcador de posición.
+# The long default magnet_uri that amarr uses as a placeholder.
 _DEFAULT_MAGNET_URI = (
     "magnet:?xt=urn:btih:58d3afd393bb1748dc25e24fc680f032a475fa63"
     "&dn=Matrix%20HQ%20movie%201998"
@@ -94,13 +94,13 @@ _DEFAULT_MAGNET_URI = (
 
 
 class TorrentInfo(BaseModel):
-    """Información de un torrent tal como la espera Radarr/Sonarr.
+    """Torrent information as Radarr/Sonarr expects it.
 
-    Los primeros campos son los que consume Radarr; el resto reproduce la
-    respuesta de qBittorrent con valores por defecto.
+    The first fields are the ones Radarr consumes; the rest reproduce the
+    qBittorrent response with default values.
     """
 
-    # Usados por Radarr.
+    # Used by Radarr.
     hash: str
     name: str
     size: int
@@ -110,14 +110,14 @@ class TorrentInfo(BaseModel):
     category: str | None
     save_path: str
 
-    # Manejados por amarr pero no usados por Radarr.
+    # Handled by amarr but not used by Radarr.
     dlspeed: int
     num_seeds: int
     priority: int
     total_size: int
     downloaded: int
 
-    # Parseados por Radarr pero aún no gestionados por amarr.
+    # Parsed by Radarr but not yet handled by amarr.
     content_path: str = ""
     ratio: float = 1.0
     ratio_limit: int = -2
@@ -126,7 +126,7 @@ class TorrentInfo(BaseModel):
 
     magnet_uri: str = _DEFAULT_MAGNET_URI
 
-    # No gestionados por amarr (valores por defecto de qBittorrent).
+    # Not handled by amarr (qBittorrent default values).
     upspeed: int = 0
     num_leechs: int = 0
     tags: str = ""
@@ -158,7 +158,7 @@ class TorrentInfo(BaseModel):
 
 
 class Preferences(BaseModel):
-    """Preferencias de qBittorrent. Sólo ``save_path`` es obligatorio."""
+    """qBittorrent preferences. Only ``save_path`` is required."""
 
     add_trackers: str = ""
     add_trackers_enabled: bool = False

@@ -1,21 +1,21 @@
 # -*- coding: utf-8 -*-
-"""Cliente eD2k/eMule (eDonkey2000 + Kad) 100% Python, sin dependencias externas.
+"""eD2k/eMule (eDonkey2000 + Kad) client, 100% Python, no external dependencies.
 
-Uso rapido:
+Quick usage:
 
     from ed2k import ServerSearch, KadSearch, print_results
 
-    # Busqueda en servidor (TCP)
+    # Server search (TCP)
     results = ServerSearch("45.82.80.155:5687").search("ubuntu")
 
-    # Busqueda en Kad (serverless, UDP) desde un nodes.dat
+    # Kad search (serverless, UDP) from a nodes.dat
     results = KadSearch("nodes.dat").search("ubuntu", with_sources=True)
 
     for r in results:
         print(r.name, r.size, r.ed2k_link, r.sources)
 
-Cada resultado es un `SearchResult` (name/raw_name/size/file_hash/sources/ed2k_link).
-El progreso se emite via logging ('ed2k.server' / 'ed2k.kad'); por defecto silencioso.
+Each result is a `SearchResult` (name/raw_name/size/file_hash/sources/ed2k_link).
+Progress is emitted via logging ('ed2k.server' / 'ed2k.kad'); silent by default.
 """
 from .core import (
     SearchResult, print_results, sanitize_filename, decode_str, human_size,

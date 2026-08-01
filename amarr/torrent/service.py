@@ -1,8 +1,8 @@
-"""Lógica de negocio que traduce aMule <-> qBittorrent (``TorrentService.kt``).
+"""Business logic that translates aMule <-> qBittorrent (``TorrentService.kt``).
 
-Funde los ficheros compartidos y la cola de descargas de aMule en la vista de
-"torrents" que esperan Sonarr/Radarr, y traduce las operaciones (añadir, borrar,
-categorías) a comandos EC.
+Merges aMule's shared files and download queue into the "torrents" view
+that Sonarr/Radarr expect, and translates the operations (add, delete,
+categories) into EC commands.
 """
 from __future__ import annotations
 
@@ -22,12 +22,12 @@ from .models import (
     TorrentState,
 )
 
-# Valor que qBittorrent usa para indicar "sin ETA disponible".
+# Value qBittorrent uses to indicate "no ETA available".
 _NO_ETA = 8640000
 
 
 class NotFoundException(Exception):
-    """Se traduce a HTTP 404 en la capa de API."""
+    """Translated to HTTP 404 in the API layer."""
 
 
 class TorrentService:
@@ -43,15 +43,15 @@ class TorrentService:
         self._finished_path = finished_path
         self._log = logger or logging.getLogger("amarr.torrent")
 
-    # --- consulta -----------------------------------------------------------
+    # --- queries ------------------------------------------------------------
 
     def get_torrent_info(self, category: Optional[str]) -> List[TorrentInfo]:
         downloading_files = self._amule.get_download_queue()
         shared_files = self._amule.get_shared_files()
         downloading_hashes = {f.file_hash_hex_string for f in downloading_files}
 
-        # Los ficheros en descarga también aparecen entre los compartidos; se
-        # eliminan de estos para no duplicarlos.
+        # Downloading files also appear among the shared ones; they are
+        # removed from those to avoid duplicating them.
         all_files = [
             f
             for f in shared_files
@@ -70,7 +70,7 @@ class TorrentService:
             if isinstance(dl, PartFileTag):
                 result.append(self._transferring_to_info(dl, category))
             else:
-                # Fichero ya descargado por completo (sólo compartido).
+                # File already fully downloaded (shared only).
                 result.append(
                     TorrentInfo(
                         hash=dl.file_hash_hex_string,
@@ -140,17 +140,17 @@ class TorrentService:
     def _compute_progress(
         size_done: Optional[int], size_full: Optional[int]
     ) -> float:
-        """Progreso (0..1) protegido frente a tamaño nulo o cero.
+        """Progress (0..1) guarded against a null or zero size.
 
-        aMule normalmente envía ambos tamaños, pero un part-file recién creado
-        puede llegar con ``size_full`` a 0 o ausente; evitamos la división por
-        cero (y el ``TypeError`` si fuese ``None``).
+        aMule normally sends both sizes, but a freshly created part-file
+        may arrive with ``size_full`` at 0 or absent; we avoid the division by
+        zero (and the ``TypeError`` if it were ``None``).
         """
         if not size_full or not size_done:
             return 0.0
         return size_done / size_full
 
-    # --- categorías ---------------------------------------------------------
+    # --- categories ---------------------------------------------------------
 
     def get_categories(self) -> Dict[str, Category]:
         return {c.name: c for c in self._categories.get_categories()}
@@ -158,7 +158,7 @@ class TorrentService:
     def add_category(self, category: Category) -> None:
         self._categories.add_category(category)
 
-    # --- altas/bajas --------------------------------------------------------
+    # --- add/remove ---------------------------------------------------------
 
     def add_torrent(
         self,
@@ -203,7 +203,7 @@ class TorrentService:
             )
             self._categories.delete(file.file_hash_hex_string)
 
-    # --- ficheros / propiedades --------------------------------------------
+    # --- files / properties -------------------------------------------------
 
     def get_file(self, hash: str) -> TorrentFile:
         info = next(t for t in self.get_torrent_info(None) if t.hash == hash)
@@ -217,7 +217,7 @@ class TorrentService:
             seeding_time=info.seeding_time,
         )
 
-    # --- internos -----------------------------------------------------------
+    # --- internals ----------------------------------------------------------
 
     def _delete_shared_file_by_hash(self, hash: str) -> None:
         file = next(

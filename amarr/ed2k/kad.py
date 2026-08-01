@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
-"""Cliente de busqueda en la red Kad (Kademlia de eMule), serverless sobre UDP.
+"""Kad network (eMule's Kademlia) search client, serverless over UDP.
 
-API de alto nivel:
+High-level API:
     from ed2k import KadSearch
     kad = KadSearch("nodes.dat")
-    results = kad.search("ubuntu")                 # disponibilidad publicada
-    results = kad.search("ubuntu", with_sources=True)  # fuentes reales (mas lento)
+    results = kad.search("ubuntu")                 # published availability
+    results = kad.search("ubuntu", with_sources=True)  # real sources (slower)
 
-Flujo interno: bootstrap desde nodes.dat -> lookup iterativo hacia md4(keyword)
--> KADEMLIA2_SEARCH_KEY_REQ a los nodos cercanos -> parseo de resultados.
-El progreso se emite por logging (logger 'ed2k.kad'); por defecto silencioso.
+Internal flow: bootstrap from nodes.dat -> iterative lookup towards md4(keyword)
+-> KADEMLIA2_SEARCH_KEY_REQ to the nearby nodes -> result parsing.
+Progress is emitted via logging (logger 'ed2k.kad'); silent by default.
 """
 import logging
 import os
@@ -24,7 +24,7 @@ from .core import (read_tag, filter_by_query, SearchResult,
 
 log = logging.getLogger("ed2k.kad")
 
-# --- Bytes de protocolo Kad ---
+# --- Kad protocol bytes ---
 PR_KAD = 0xE4
 PR_KAD_PACKED = 0xE5
 
@@ -41,27 +41,27 @@ KADEMLIA2_SEARCH_RES = 0x3B
 KADEMLIA2_PING = 0x60
 KADEMLIA2_PONG = 0x61
 
-KAD_FIND_NODE = 0x0B  # nº de contactos a pedir en un KADEMLIA2_REQ
+KAD_FIND_NODE = 0x0B  # number of contacts to request in a KADEMLIA2_REQ
 
 
-# ======================= Identificadores Kad =======================
+# ======================= Kad identifiers =======================
 def kad_id_int(b):
-    """Interpreta los 16 bytes de un ID Kad como el CUInt128 de eMule: 4 uint32 en
-    little-endian con la PRIMERA palabra como la mas significativa. Es la metrica
-    de distancia XOR de eMule (big-endian crudo descoloca las palabras)."""
+    """Interprets the 16 bytes of a Kad ID as eMule's CUInt128: 4 uint32 in
+    little-endian with the FIRST word as the most significant. It is eMule's
+    XOR distance metric (raw big-endian misplaces the words)."""
     w = struct.unpack("<4I", b)
     return (w[0] << 96) | (w[1] << 64) | (w[2] << 32) | w[3]
 
 
 def word_reverse(b16):
-    """Invierte los bytes dentro de cada palabra de 32 bits (4 grupos de 4)."""
+    """Reverses the bytes within each 32-bit word (4 groups of 4)."""
     return b"".join(b16[i:i + 4][::-1] for i in range(0, 16, 4))
 
 
 def keyword_target(keyword):
-    """Hash de keyword para enrutar en Kad: MD4(UTF-8) con cada palabra de 32 bits
-    invertida. eMule construye el CUInt128 con SetValueBE, lo que en el cable
-    equivale a invertir cada grupo de 4 bytes del MD4."""
+    """Keyword hash for routing in Kad: MD4(UTF-8) with each 32-bit word
+    reversed. eMule builds the CUInt128 with SetValueBE, which on the wire
+    is equivalent to reversing each 4-byte group of the MD4."""
     return word_reverse(md4(keyword.encode("utf-8")))
 
 
@@ -72,7 +72,7 @@ def ip_to_str(ipval, order):
 
 
 def parse_nodes_dat(path, ip_order="be"):
-    """Lee un nodes.dat -> (contactos, version, bytes_por_contacto)."""
+    """Reads a nodes.dat -> (contacts, version, bytes_per_contact)."""
     with open(path, "rb") as f:
         d = f.read()
     marker, = struct.unpack_from("<I", d, 0)
@@ -82,7 +82,7 @@ def parse_nodes_dat(path, ip_order="be"):
         version, = struct.unpack_from("<I", d, off); off += 4
         count, = struct.unpack_from("<I", d, off); off += 4
     else:
-        count = marker  # formato legacy
+        count = marker  # legacy format
     rest = len(d) - off
     per = rest // count if count else 0
     contacts = []
@@ -93,7 +93,7 @@ def parse_nodes_dat(path, ip_order="be"):
         ip, = struct.unpack_from("<I", d, off); off += 4
         udp, tcp = struct.unpack_from("<HH", d, off); off += 4
         cver = d[off]; off += 1
-        if per >= 34:      # v2/v3: clave UDP (8) + verified (1)
+        if per >= 34:      # v2/v3: UDP key (8) + verified (1)
             off += 9
         elif per >= 26:
             off += 1
@@ -104,7 +104,7 @@ def parse_nodes_dat(path, ip_order="be"):
     return contacts, version, per
 
 
-# ======================= Motor de bajo nivel =======================
+# ======================= Low-level engine =======================
 class KadClient:
     def __init__(self, ip_order="be", verbose=False, timeout=3.0):
         self.verbose = verbose
@@ -113,8 +113,8 @@ class KadClient:
         self.sock.bind(("0.0.0.0", 0))
         self.sock.settimeout(timeout)
         self.my_id = os.urandom(16)
-        self.alive = set()  # (ip, udp) que han respondido
-        self.contacts = {}  # pool de contactos descubierto (lo reutiliza KadSession)
+        self.alive = set()  # (ip, udp) that have responded
+        self.contacts = {}  # discovered contact pool (reused by KadSession)
         self.stats = {"sent": 0, "boot_res": 0, "res": 0, "search_res": 0,
                       "encrypted": 0, "other": 0}
 
@@ -140,8 +140,8 @@ class KadClient:
                   contact["ip"], contact["udp"])
 
     def recv_for(self, duration):
-        """Recibe y despacha paquetes durante 'duration' s.
-        Devuelve (contactos_nuevos, resultados_busqueda)."""
+        """Receives and dispatches packets for 'duration' s.
+        Returns (new_contacts, search_results)."""
         end = time.time() + duration
         new_contacts, results = [], []
         while time.time() < end:
@@ -154,7 +154,7 @@ class KadClient:
                 continue
             proto = data[0]
             if proto not in (PR_KAD, PR_KAD_PACKED):
-                self.stats["encrypted"] += 1  # probablemente ofuscado/cifrado
+                self.stats["encrypted"] += 1  # probably obfuscated/encrypted
                 continue
             opcode, payload = data[1], data[2:]
             if proto == PR_KAD_PACKED:
@@ -211,8 +211,8 @@ class KadClient:
         return out
 
     def _parse_search_res(self, payload):
-        """SEARCH_RES: [source 16][target 16][count u16] luego por fichero
-        [fileID 16][tagcount u8][tags]. Cabecera de 32; reintenta con 16."""
+        """SEARCH_RES: [source 16][target 16][count u16] then per file
+        [fileID 16][tagcount u8][tags]. 32-byte header; retries with 16."""
         for header in (32, 16):
             try:
                 res = self._try_parse_search(payload, header)
@@ -220,7 +220,7 @@ class KadClient:
                     return res
             except (IndexError, struct.error):
                 continue
-        log.debug("    [!] SEARCH_RES no parseado, hex: %s", payload[:48].hex())
+        log.debug("    [!] SEARCH_RES not parsed, hex: %s", payload[:48].hex())
         return []
 
     def _try_parse_search(self, payload, header):
@@ -237,7 +237,7 @@ class KadClient:
                 for _ in range(ntags):
                     name, val, off = read_tag(payload, off)
                     tags[name] = val
-                # answer ID es CUInt128; el hash ed2k es la version word-reversed.
+                # answer ID is a CUInt128; the ed2k hash is the word-reversed version.
                 out.append({"hash": word_reverse(answer), "tags": tags})
             except (IndexError, struct.error, ValueError):
                 break
@@ -245,11 +245,11 @@ class KadClient:
 
     def enrich_sources(self, results, contacts, top, rounds=5, alpha=6,
                        per_file_nodes=15, gather=3.0):
-        """Para los 'top' ficheros: lookup hacia el hash del fichero y luego
-        KADEMLIA2_SEARCH_SOURCE_REQ, contando clientes distintos. Guarda el conteo
-        en tags['kad_sources']."""
+        """For the 'top' files: lookup towards the file hash and then
+        KADEMLIA2_SEARCH_SOURCE_REQ, counting distinct clients. Stores the count
+        in tags['kad_sources']."""
         base = list(contacts)
-        log.info("[*] Buscando fuentes reales de %d ficheros (lookup por fichero)...",
+        log.info("[*] Looking for real sources of %d files (per-file lookup)...",
                  min(top, len(results)))
         for fhash, tags in results[:top]:
             wire = word_reverse(fhash)
@@ -305,7 +305,7 @@ class KadClient:
 
     def keyword_search(self, query, seeds, rounds=15, alpha=8, search_nodes=30,
                        gather=1.5, search_gather=5.0, enrich_top=25, do_sources=False):
-        """Hace bootstrap + lookup + busqueda y devuelve lista de (hash, tags)."""
+        """Does bootstrap + lookup + search and returns a list of (hash, tags)."""
         words = query.lower().split()
         target = keyword_target(words[0])
         tint = kad_id_int(target)
@@ -317,7 +317,7 @@ class KadClient:
         boot, _ = self.recv_for(5.0)
         for c in boot:
             contacts.setdefault(c["id_int"], c)
-        log.info("[*] Bootstrap: %d respuestas, pool de %d contactos",
+        log.info("[*] Bootstrap: %d responses, pool of %d contacts",
                  self.stats["boot_res"], len(contacts))
 
         queried = set()
@@ -338,21 +338,21 @@ class KadClient:
             dmin = min((c["id_int"] ^ tint for c in contacts.values()), default=0)
             alive = [c for c in contacts.values() if (c["ip"], c["udp"]) in self.alive]
             amin = min((c["id_int"] ^ tint for c in alive), default=0)
-            log.info("[*] Ronda %2d: +%d contactos (total %d, vivos %d), "
-                     "dist min=%d bits (vivos=%d)", rnd + 1, added, len(contacts),
+            log.info("[*] Round %2d: +%d contacts (total %d, alive %d), "
+                     "min dist=%d bits (alive=%d)", rnd + 1, added, len(contacts),
                      len(alive), dmin.bit_length(), amin.bit_length())
 
         alive = [c for c in contacts.values() if (c["ip"], c["udp"]) in self.alive]
         closest = sorted(alive or list(contacts.values()),
                          key=lambda c: c["id_int"] ^ tint)[:search_nodes]
-        log.info("[*] Consultando %d nodos vivos cercanos con SEARCH_KEY_REQ...", len(closest))
+        log.info("[*] Querying %d nearby alive nodes with SEARCH_KEY_REQ...", len(closest))
         for c in closest:
             self.send_search_key(target, c)
         _, results = self.recv_for(search_gather)
         _, more = self.recv_for(2.0)
         results.extend(more)
 
-        # Dedup por hash quedandonos con la mayor disponibilidad publicada.
+        # Dedup by hash, keeping the highest published availability.
         dedup = {}
         for r in results:
             h = r["hash"]
@@ -362,7 +362,7 @@ class KadClient:
         out = filter_by_query(list(dedup.items()), query)
         out.sort(key=lambda r: r[1].get(FT_SOURCES, 0), reverse=True)
 
-        # Exponer el pool de contactos descubierto (lo reutiliza KadSession).
+        # Expose the discovered contact pool (reused by KadSession).
         self.contacts = contacts
 
         if do_sources:
@@ -371,36 +371,36 @@ class KadClient:
         return out
 
 
-# ======================= API de alto nivel =======================
+# ======================= High-level API =======================
 class KadSearch:
-    """Busqueda por palabra clave en la red Kad. Carga nodes.dat al construirse."""
+    """Keyword search on the Kad network. Loads nodes.dat on construction."""
 
     def __init__(self, nodes_path="nodes.dat", ip_order="be", timeout=3.0, verbose=False):
         self.seeds, self.version, self.per = parse_nodes_dat(nodes_path, ip_order)
         if not self.seeds:
-            raise ValueError("nodes.dat sin contactos semilla: %s" % nodes_path)
+            raise ValueError("nodes.dat with no seed contacts: %s" % nodes_path)
         self.ip_order = ip_order
         self.timeout = timeout
         self.verbose = verbose
-        log.info("[*] %s: %d contactos (formato v%d, %d bytes/contacto, ip=%s)",
+        log.info("[*] %s: %d contacts (format v%d, %d bytes/contact, ip=%s)",
                  nodes_path, len(self.seeds), self.version, self.per, ip_order)
 
     def search(self, query, with_sources=False, enrich_top=25):
-        """Busca 'query' y devuelve lista de SearchResult (ordenada por fuentes).
-        with_sources=True hace una busqueda de fuentes reales por fichero (lento)."""
+        """Searches 'query' and returns a list of SearchResult (sorted by sources).
+        with_sources=True does a real per-file source search (slow)."""
         cli = KadClient(ip_order=self.ip_order, verbose=self.verbose, timeout=self.timeout)
         try:
             pairs = cli.keyword_search(query, seeds=self.seeds,
                                        enrich_top=enrich_top, do_sources=with_sources)
             log.info("[*] Stats: %s", cli.stats)
             if cli.stats["res"] == 0 and cli.stats["boot_res"] == 0:
-                log.info("[!] Ningun nodo respondio. Prueba ip_order='le' o un nodes.dat valido.")
+                log.info("[!] No node responded. Try ip_order='le' or a valid nodes.dat.")
                 if cli.stats["encrypted"]:
-                    log.info("    Llegaron %d paquetes no-Kad (posible ofuscacion/cifrado UDP).",
+                    log.info("    %d non-Kad packets arrived (possible UDP obfuscation/encryption).",
                              cli.stats["encrypted"])
             elif not pairs:
-                log.info("[!] 0 resultados. La red respondio pero ningun nodo cercano indexa "
-                         "esta keyword (quiza no este publicada). Prueba otra palabra.")
+                log.info("[!] 0 results. The network responded but no nearby node indexes "
+                         "this keyword (maybe it isn't published). Try another word.")
             return [SearchResult.from_tags(h, t) for h, t in pairs]
         finally:
             cli.close()

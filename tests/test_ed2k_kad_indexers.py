@@ -1,7 +1,7 @@
-"""Tests de los indexers ed2k (servidor) y kad con el motor de búsqueda inyectado.
+"""Tests for the ed2k (server) and kad indexers with an injected search engine.
 
-Se inyecta un ``search_fn`` que devuelve ``SearchResult`` de la librería ``ed2k``,
-de modo que no se toca la red.
+A ``search_fn`` is injected that returns ``SearchResult`` from the ``ed2k``
+library, so the network is never touched.
 """
 import logging
 
@@ -79,4 +79,4 @@ def test_search_logs_raw_and_relevant_counts_in_debug(caplog):
     with caplog.at_level(logging.DEBUG, logger="amarr.torznab.ed2k"):
         ix.search("x", 0, 100, [])
     messages = " ".join(r.getMessage() for r in caplog.records)
-    assert "crudos" in messages  # traza de diagnóstico del modo DEBUG
+    assert "raw" in messages  # DEBUG-mode diagnostic trace

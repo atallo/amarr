@@ -1,9 +1,9 @@
-"""Interfaz de indexador y pipeline común de Torznab (``torznab/indexer/*.kt``).
+"""Indexer interface and common Torznab pipeline (``torznab/indexer/*.kt``).
 
-``Indexer`` centraliza todo lo que comparten los motores de búsqueda
-(normalización de la consulta, filtrado de vídeo, construcción del feed, caps y
-manejo de errores). Cada motor concreto solo implementa :meth:`Indexer._raw_search`,
-que devuelve una lista de :class:`SearchFile` (el modelo interno común).
+``Indexer`` centralizes everything the search engines share
+(query normalization, video filtering, feed building, caps and
+error handling). Each concrete engine only implements :meth:`Indexer._raw_search`,
+which returns a list of :class:`SearchFile` (the common internal model).
 """
 from __future__ import annotations
 
@@ -23,44 +23,44 @@ if TYPE_CHECKING:
 
 
 class ThrottledException(Exception):
-    """El indexador limita las peticiones (se traduce a HTTP 403)."""
+    """The indexer is rate-limiting requests (translated to HTTP 403)."""
 
 
 class UnauthorizedException(Exception):
-    """Credenciales inválidas (se traduce a HTTP 401)."""
+    """Invalid credentials (translated to HTTP 401)."""
 
 
-# Extensiones consideradas vídeo.
+# Extensions considered video.
 _VIDEO_EXTENSIONS = {
     "avi", "m2ts", "m4v", "mkv", "mov", "mp4",
     "mpeg", "mpg", "ts", "webm", "wmv",
 }
-# Extensiones excluidas explícitamente.
+# Explicitly excluded extensions.
 _EXCLUDED_EXTENSIONS = {
     "ass", "cue", "gif", "jpg", "jpeg", "m3u", "mp3",
     "nfo", "png", "rar", "srt", "sub", "txt", "zip",
 }
-# Tamaño mínimo para aceptar un fichero sin extensión como vídeo (50 MiB).
+# Minimum size to accept an extensionless file as video (50 MiB).
 _MIN_VIDEO_SIZE_BYTES = 50 * 1024 * 1024
 
 _NON_WORD_RE = re.compile(r"[^\w\s]+", re.UNICODE)
 _WHITESPACE_RE = re.compile(r"\s+")
 
-# Errores de los motores que no deben tumbar la respuesta a Sonarr/Radarr: se
-# registran y se devuelve un feed vacío (un servidor eD2k caído o un nodes.dat
-# inválido no deben provocar un 500).
+# Engine errors that must not take down the response to Sonarr/Radarr: they are
+# logged and an empty feed is returned (a downed eD2k server or an invalid
+# nodes.dat must not cause a 500).
 _SEARCH_ERRORS = (OSError, ValueError)
 
 
 class Indexer(ABC):
-    """Fuente de resultados de búsqueda en formato Torznab.
+    """Source of search results in Torznab format.
 
-    Implementa el pipeline común; las subclases solo aportan ``_raw_search``.
+    Implements the common pipeline; subclasses only provide ``_raw_search``.
     """
 
-    #: Título anunciado en las capacidades (``caps``); las subclases lo afinan.
+    #: Title advertised in the capabilities (``caps``); subclasses fine-tune it.
     server_title: str = "Amarr"
-    #: Identificador del motor para la caché; vacío = no se cachea.
+    #: Engine identifier for the cache; empty = not cached.
     cache_key: str = ""
 
     def __init__(
@@ -71,7 +71,7 @@ class Indexer(ABC):
         self._log = logger or logging.getLogger("amarr.torznab.indexer")
         self._cache = cache
 
-    # --- API pública --------------------------------------------------------
+    # --- public API ---------------------------------------------------------
 
     def search(
         self, query: str, offset: int, limit: int, cat: List[int], base_url: str = ""
@@ -83,11 +83,11 @@ class Indexer(ABC):
             self._log.debug("Empty query, returning empty response")
             return _empty_query_response()
         clean_query = self._normalize_search_query(query)
-        self._log.debug("Consulta normalizada: %r -> %r", query, clean_query)
+        self._log.debug("Normalized query: %r -> %r", query, clean_query)
         results = self._raw_search_cached(clean_query)
         relevant = [f for f in results if self._is_relevant_video_result(f)]
         self._log.debug(
-            "Resultados de %r: %d crudos, %d relevantes tras el filtro de vídeo",
+            "Results for %r: %d raw, %d relevant after the video filter",
             clean_query,
             len(results),
             len(relevant),
@@ -95,25 +95,25 @@ class Indexer(ABC):
         return self._build_feed(relevant, offset, limit, base_url)
 
     def _raw_search_cached(self, query: str) -> List[SearchFile]:
-        """``_raw_search`` con caché TTL por ``(cache_key, query)``.
+        """``_raw_search`` with a TTL cache keyed by ``(cache_key, query)``.
 
-        Los errores de red/datos se registran y devuelven lista vacía: **no** se
-        cachean, para reintentar en la siguiente petición.
+        Network/data errors are logged and return an empty list: they are **not**
+        cached, so the next request retries.
         """
         use_cache = self._cache is not None and bool(self.cache_key)
         if use_cache:
             hit = self._cache.get(self.cache_key, query)
             if hit is not None:
                 self._log.debug(
-                    "Caché HIT (%s, %r): %d resultados", self.cache_key, query, len(hit)
+                    "Cache HIT (%s, %r): %d results", self.cache_key, query, len(hit)
                 )
                 return hit
         try:
             results = self._raw_search(query)
         except _SEARCH_ERRORS as exc:
-            # En DEBUG se incluye el traceback completo para depurar.
+            # In DEBUG the full traceback is included to help debug.
             self._log.warning(
-                "La búsqueda falló (%s): %s",
+                "The search failed (%s): %s",
                 type(exc).__name__,
                 exc,
                 exc_info=self._log.isEnabledFor(logging.DEBUG),
@@ -122,7 +122,7 @@ class Indexer(ABC):
         if use_cache:
             self._cache.put(self.cache_key, query, results)
             self._log.debug(
-                "Caché MISS (%s, %r): guardados %d resultados",
+                "Cache MISS (%s, %r): stored %d results",
                 self.cache_key,
                 query,
                 len(results),
@@ -132,15 +132,15 @@ class Indexer(ABC):
     def capabilities(self) -> Caps:
         return Caps(server_title=self.server_title)
 
-    # --- a implementar por cada motor --------------------------------------
+    # --- to be implemented by each engine ----------------------------------
 
     @abstractmethod
     def _raw_search(self, query: str) -> List[SearchFile]:
-        """Ejecuta la búsqueda cruda en el motor concreto (la consulta ya viene
-        normalizada). Puede lanzar errores de red/datos; el pipeline los captura.
+        """Runs the raw search on the concrete engine (the query is already
+        normalized). It may raise network/data errors; the pipeline catches them.
         """
 
-    # --- helpers compartidos ------------------------------------------------
+    # --- shared helpers -----------------------------------------------------
 
     @staticmethod
     def _is_relevant_video_result(file: SearchFile) -> bool:
@@ -156,9 +156,9 @@ class Indexer(ABC):
 
     @staticmethod
     def _normalize_search_query(query: str) -> str:
-        # NFD + eliminación de diacríticos (toda marca combinante), sustitución de
-        # símbolos por espacios y colapso de espacios. Equivale al original en
-        # Kotlin y a ``core._fold`` de la librería ed2k.
+        # NFD + removal of diacritics (any combining mark), replacement of
+        # symbols with spaces and whitespace collapsing. Equivalent to the Kotlin
+        # original and to ``core._fold`` of the ed2k library.
         decomposed = unicodedata.normalize("NFD", query)
         without_marks = "".join(c for c in decomposed if not unicodedata.combining(c))
         spaced = _NON_WORD_RE.sub(" ", without_marks)
@@ -200,10 +200,10 @@ class Indexer(ABC):
 
 
 def _details_url(base_url: str, result: SearchFile) -> str:
-    """URL de la página de detalles de amarr para un resultado.
+    """URL of amarr's details page for a result.
 
-    Sonarr/Radarr la muestran como *info link*. Va vacía si no hay ``base_url``
-    (p. ej. en tests), en cuyo caso no se emite ``<comments>``.
+    Sonarr/Radarr show it as an *info link*. It is empty if there is no ``base_url``
+    (e.g. in tests), in which case no ``<comments>`` is emitted.
     """
     if not base_url:
         return ""

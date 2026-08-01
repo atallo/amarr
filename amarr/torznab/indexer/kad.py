@@ -1,8 +1,8 @@
-"""Indexador Torznab que busca en la red Kad (``amarr.ed2k.KadSearch``).
+"""Torznab indexer that searches the Kad network (``amarr.ed2k.KadSearch``).
 
-Serverless (UDP), 100% Python, independiente de aMule. Carga ``nodes.dat`` de
-forma perezosa en la primera búsqueda y reutiliza el cliente Kad después. La
-descarga sigue pasando por aMule.
+Serverless (UDP), 100% Python, independent of aMule. Loads ``nodes.dat``
+lazily on the first search and reuses the Kad client afterwards. Downloading
+still goes through aMule.
 """
 from __future__ import annotations
 
@@ -15,12 +15,12 @@ from ...kad_session import KadSession
 from ._results import to_search_files
 from .base import Indexer
 
-# Firma del motor de búsqueda; inyectable para poder testear sin red.
+# Search engine signature; injectable so it can be tested without a network.
 SearchFn = Callable[[str], List[SearchResult]]
 
 
 class KadIndexer(Indexer):
-    """Búsqueda por palabra clave en la red Kad (Kademlia, UDP)."""
+    """Keyword search on the Kad network (Kademlia, UDP)."""
 
     server_title = "Amarr (Kad)"
     cache_key = "kad"
@@ -48,16 +48,16 @@ class KadIndexer(Indexer):
             results = self._search_fn(query)
         else:
             if self._session is None:
-                # KadSession carga nodes.dat (puede lanzar FileNotFoundError/
-                # ValueError); lo captura el pipeline de Indexer (feed vacío).
-                self._log.debug("Kad: cargando nodes.dat de %s", self._nodes_path)
+                # KadSession loads nodes.dat (may raise FileNotFoundError/
+                # ValueError); the Indexer pipeline catches it (empty feed).
+                self._log.debug("Kad: loading nodes.dat from %s", self._nodes_path)
                 self._session = KadSession(
                     self._nodes_path,
                     ip_order=self._ip_order,
                     with_sources=self._with_sources,
                     idle_seconds=self._idle_seconds,
                 )
-            self._log.debug("Kad: buscando %r (pool reutilizado)", query)
+            self._log.debug("Kad: searching %r (reused pool)", query)
             results = self._session.search(query)
-        self._log.debug("Kad: %d resultados crudos de la red", len(results))
+        self._log.debug("Kad: %d raw results from the network", len(results))
         return to_search_files(results)

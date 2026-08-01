@@ -1,4 +1,4 @@
-"""Tests del AmuleIndexer (portado de ``AmuleIndexerTest.kt``)."""
+"""Tests for the AmuleIndexer (ported from ``AmuleIndexerTest.kt``)."""
 from amarr.magnet import MagnetLink
 from amarr.torznab.indexer.amule import AmuleIndexer
 
@@ -32,7 +32,7 @@ def test_empty_query_returns_single_placeholder():
     assert len(item.attributes) == 2
     assert item.attributes[0].name == "category" and item.attributes[0].value == "1"
     assert item.attributes[1].name == "size" and item.attributes[1].value == "0"
-    # No se debe consultar al cliente.
+    # The client must not be queried.
     assert not hasattr(client, "last_query")
 
 

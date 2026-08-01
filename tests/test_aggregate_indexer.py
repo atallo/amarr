@@ -1,4 +1,4 @@
-"""Tests del AggregateIndexer (endpoint ``all``): fusión, dedup y paginación."""
+"""Tests for the AggregateIndexer (``all`` endpoint): merge, dedup and pagination."""
 from amarr.ed2k import SearchResult
 from amarr.torznab.indexer.aggregate import AggregateIndexer
 from amarr.torznab.indexer.ed2k_server import Ed2kServerIndexer
@@ -21,7 +21,7 @@ def test_merges_and_dedups_by_url():
     b = Ed2kServerIndexer(search_fn=_engine([_sr("b.mkv", h2), _sr("c.mkv", h3)]))
     feed = AggregateIndexer([a, b]).search("x", 0, 100, [])
     assert sorted(i.title for i in feed.channel.item) == ["a.mkv", "b.mkv", "c.mkv"]
-    assert feed.channel.response.total == 3  # b.mkv deduplicado
+    assert feed.channel.response.total == 3  # b.mkv deduplicated
 
 
 def test_offset_and_slicing():

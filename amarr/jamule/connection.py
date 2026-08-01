@@ -1,9 +1,9 @@
-"""Conexión TCP con el núcleo de aMule (``jamule/AmuleConnection.kt``).
+"""TCP connection to the aMule core (``jamule/AmuleConnection.kt``).
 
-Maneja el socket, la reconexión y la autenticación. Es **síncrono** y protege
-cada intercambio petición/respuesta con un :class:`threading.Lock` (equivale al
-``synchronized(socket)`` de Kotlin), de modo que varios hilos del threadpool de
-FastAPI pueden compartir un mismo cliente con seguridad.
+Handles the socket, reconnection and authentication. It is **synchronous** and
+protects each request/response exchange with a :class:`threading.Lock` (equivalent
+to Kotlin's ``synchronized(socket)``), so that several threads of the FastAPI
+threadpool can safely share a single client.
 """
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ _logger = logging.getLogger("amarr.jamule.connection")
 
 
 class AmuleConnection:
-    """Conexión autenticada y reutilizable con aMule."""
+    """Authenticated and reusable connection to aMule."""
 
     def __init__(
         self,
@@ -44,9 +44,9 @@ class AmuleConnection:
         self._logger = logger or _logger
         self._connected = False
         self._socket: Optional[socket.socket] = None
-        # Lector buffer persistente ligado al socket. Se recrea en cada
-        # reconexión; reutilizarlo evita perder bytes que el buffer pudiera
-        # haber leído por adelantado entre peticiones.
+        # Persistent buffered reader bound to the socket. It is recreated on each
+        # reconnection; reusing it avoids losing bytes that the buffer might
+        # have read ahead between requests.
         self._reader: Optional[io.BufferedReader] = None
         self._lock = threading.RLock()
 
@@ -64,9 +64,9 @@ class AmuleConnection:
         password: str,
         logger: Optional[logging.Logger] = None,
     ) -> "AmuleConnection":
-        """Crea una conexión a partir de host/puerto.
+        """Creates a connection from host/port.
 
-        ``timeout`` en segundos (0 = sin timeout, como ``soTimeout`` en Java).
+        ``timeout`` in seconds (0 = no timeout, like ``soTimeout`` in Java).
         """
 
         def builder() -> socket.socket:
@@ -76,7 +76,7 @@ class AmuleConnection:
 
         return cls(builder, password, logger)
 
-    # --- ciclo de vida ------------------------------------------------------
+    # --- lifecycle ----------------------------------------------------------
 
     def reconnect(self) -> None:
         with self._lock:
@@ -92,14 +92,14 @@ class AmuleConnection:
             self._authenticate()
 
     def send_request(self, packet: Packet) -> Response:
-        """Envía una petición, reconectando/autenticando si hace falta."""
+        """Sends a request, reconnecting/authenticating if needed."""
         if not self._connected:
             self.reconnect()
         try:
             return self._send_request_no_auth(packet)
         except OSError:
-            # Un fallo de E/S invalida la conexión; el siguiente envío
-            # reconectará. Re-elevamos para que la capa superior decida.
+            # An I/O failure invalidates the connection; the next send
+            # will reconnect. We re-raise so the upper layer decides.
             self._connected = False
             raise
 

@@ -1,8 +1,8 @@
-"""API de depuración (``amarr/amule/DebugApi.kt``).
+"""Debug API (``amarr/amule/DebugApi.kt``).
 
-Expone ``GET /status`` con un volcado plano de las estadísticas de aMule, útil
-para diagnóstico. ``StatusResponse`` aplana ``StatsResponse`` y anida el estado
-de conexión en ``connectionStatus``.
+Exposes ``GET /status`` with a flat dump of aMule's statistics, useful
+for diagnostics. ``StatusResponse`` flattens ``StatsResponse`` and nests the
+connection state under ``connectionStatus``.
 """
 from __future__ import annotations
 

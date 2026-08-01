@@ -1,4 +1,4 @@
-"""Utilidades compartidas para los tests (fakes y fábricas)."""
+"""Shared utilities for the tests (fakes and factories)."""
 from typing import Dict, List, Optional, Set
 
 from amarr.category.store import CategoryStore
@@ -17,7 +17,7 @@ def make_part_file(
     file_status: FileStatus = FileStatus.UNKNOWN,
     file_path: Optional[str] = None,
 ) -> PartFileTag:
-    """Equivalente al ``MockTransferringFile`` de los tests de Kotlin."""
+    """Equivalent to the ``MockTransferringFile`` of the Kotlin tests."""
     return PartFileTag(
         file_hash_hex_string=file_hash_hex_string,
         file_name=file_name,
@@ -79,7 +79,7 @@ def make_search_file(
 
 
 class FakeAmuleClient:
-    """Cliente aMule de mentira, controlable desde los tests."""
+    """Fake aMule client, controllable from the tests."""
 
     def __init__(self) -> None:
         self.download_queue: List[PartFileTag] = []
@@ -108,7 +108,7 @@ class FakeAmuleClient:
 
 
 class MemoryCategoryStore(CategoryStore):
-    """Almacén de categorías en memoria (equivalente al de los tests Kotlin)."""
+    """In-memory category store (equivalent to the one in the Kotlin tests)."""
 
     def __init__(self) -> None:
         self._categories: Set[Category] = set()

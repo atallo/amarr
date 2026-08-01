@@ -1,9 +1,9 @@
-"""Fábrica de la aplicación FastAPI y punto de entrada (``amarr/App.kt``).
+"""FastAPI application factory and entry point (``amarr/App.kt``).
 
-Conecta el cliente aMule, el almacén de categorías y los routers (qBittorrent,
-Torznab y depuración). Los indexers Torznab activos se eligen con
-``AMARR_SEARCH_BACKENDS`` (``amule``/``ed2k``/``kad``); la descarga siempre pasa
-por aMule. Equivale a ``Application.app()`` de Kotlin.
+Wires together the aMule client, the category store and the routers (qBittorrent,
+Torznab and debugging). The active Torznab indexers are chosen with
+``AMARR_SEARCH_BACKENDS`` (``amule``/``ed2k``/``kad``); the download always goes
+through aMule. Equivalent to ``Application.app()`` in Kotlin.
 """
 from __future__ import annotations
 
@@ -41,7 +41,7 @@ from .torznab.indexer.kad import KadIndexer
 
 _log = logging.getLogger("amarr")
 
-# nodes.dat empaquetado con amarr (fallback por defecto para Kad).
+# nodes.dat bundled with amarr (default fallback for Kad).
 _PACKAGED_NODES = os.path.join(os.path.dirname(_ed2k_pkg.__file__), "data", "nodes.dat")
 
 
@@ -51,7 +51,7 @@ def create_app(
     finished_path: str,
     indexers: dict[str, Indexer],
 ) -> FastAPI:
-    """Construye la app a partir de sus dependencias (útil para tests)."""
+    """Builds the app from its dependencies (useful for tests)."""
     app = FastAPI(title="Amarr", docs_url=None, redoc_url=None)
 
     app.include_router(build_home_router(list(indexers.keys())))
@@ -69,7 +69,7 @@ def create_app(
 
 
 def build_client(logger: logging.Logger = _log) -> AmuleClient:
-    """Crea el cliente aMule a partir de variables de entorno obligatorias."""
+    """Creates the aMule client from required environment variables."""
     return AmuleClient.connect(
         host=required_env("AMULE_HOST"),
         port=int(required_env("AMULE_PORT")),
@@ -79,8 +79,8 @@ def build_client(logger: logging.Logger = _log) -> AmuleClient:
 
 
 def _kad_nodes_path() -> str:
-    """Ruta del ``nodes.dat`` para Kad: ``AMARR_KAD_NODES`` si está definida; si
-    no, ``<config>/nodes.dat`` si existe; en último término, el empaquetado."""
+    """Path of the ``nodes.dat`` for Kad: ``AMARR_KAD_NODES`` if set; otherwise
+    ``<config>/nodes.dat`` if it exists; as a last resort, the bundled one."""
     explicit = optional_env("AMARR_KAD_NODES", "")
     if explicit:
         return explicit
@@ -95,7 +95,7 @@ def _kad_nodes_path() -> str:
 def build_indexers(
     amule_client: AmuleClient, cache: Optional[SearchCache] = None
 ) -> dict[str, Indexer]:
-    """Construye los indexers activos según ``AMARR_SEARCH_BACKENDS``."""
+    """Builds the active indexers according to ``AMARR_SEARCH_BACKENDS``."""
     idle = search_idle_timeout()
     indexers: dict[str, Indexer] = {}
     for name in search_backends():
@@ -120,7 +120,7 @@ def build_indexers(
 
 
 def build_app_from_env() -> FastAPI:
-    """Construye la app leyendo toda la configuración del entorno."""
+    """Builds the app reading all the configuration from the environment."""
     set_log_level(optional_env("AMARR_LOG_LEVEL", "INFO"))
     setup_file_logging()
     config_path = optional_env("AMARR_CONFIG_PATH", "/config")

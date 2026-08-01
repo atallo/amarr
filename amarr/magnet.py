@@ -1,9 +1,9 @@
-"""Enlaces magnet y su conversión a ed2k (``amarr/MagnetLink.kt``).
+"""Magnet links and their conversion to ed2k (``amarr/MagnetLink.kt``).
 
-amarr usa enlaces *magnet* como interfaz con Sonarr/Radarr (que creen estar
-hablando con qBittorrent) y los traduce a enlaces ``ed2k://`` para aMule. El
-hash se guarda como bytes: ed2k usa 16 bytes (128 bits), mientras que el magnet
-``btih`` usa 20 bytes (160 bits, base32). Se rellena/recorta según haga falta.
+amarr uses *magnet* links as the interface with Sonarr/Radarr (which believe
+they are talking to qBittorrent) and translates them to ``ed2k://`` links for
+aMule. The hash is stored as bytes: ed2k uses 16 bytes (128 bits), while the
+``btih`` magnet uses 20 bytes (160 bits, base32). It is padded/trimmed as needed.
 """
 from __future__ import annotations
 
@@ -13,12 +13,12 @@ from dataclasses import dataclass, field
 from typing import List
 from urllib.parse import quote, unquote
 
-# Tracker reservado que marca un magnet como "propio" de amarr.
+# Reserved tracker that marks a magnet as "belonging" to amarr.
 AMARR_TRACKER = "http://amarr-reserved"
 
 
 def _encode_url(value: str) -> str:
-    """Equivalente a ``encodeURLParameter()`` de Ktor (espacio -> %20)."""
+    """Equivalent to Ktor's ``encodeURLParameter()`` (space -> %20)."""
     return quote(value, safe="")
 
 
@@ -28,7 +28,7 @@ def _decode_url(value: str) -> str:
 
 @dataclass
 class MagnetLink:
-    """Representa un enlace magnet con su hash, nombre, tamaño y trackers."""
+    """Represents a magnet link with its hash, name, size and trackers."""
 
     hash: bytes
     name: str
@@ -36,7 +36,7 @@ class MagnetLink:
     trackers: List[str] = field(default_factory=list)
 
     def amule_hex_hash(self) -> str:
-        """Hash de 16 bytes (128 bits) en hexadecimal, como usa ed2k."""
+        """16-byte (128-bit) hash in hexadecimal, as ed2k uses."""
         return self.hash[:16].hex()
 
     def to_ed2k_link(self) -> str:
@@ -46,7 +46,7 @@ class MagnetLink:
         return AMARR_TRACKER in self.trackers
 
     def __str__(self) -> str:
-        # Se rellena el hash a 20 bytes (160 bits) para el formato btih/base32.
+        # The hash is padded to 20 bytes (160 bits) for the btih/base32 format.
         padded = self.hash[:20].ljust(20, b"\x00")
         base32_hash = base64.b32encode(padded).decode("ascii")
         trackers = "&tr=".join(_encode_url(t) for t in self.trackers)
@@ -71,7 +71,7 @@ class MagnetLink:
     def __hash__(self) -> int:
         return hash((self.hash, self.name, self.size, tuple(self.trackers)))
 
-    # --- fábricas -----------------------------------------------------------
+    # --- factories ----------------------------------------------------------
 
     @staticmethod
     def for_amarr(hash: bytes, name: str, size: int) -> "MagnetLink":

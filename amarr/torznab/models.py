@@ -1,8 +1,8 @@
-"""Modelos Torznab (Caps y Feed) y su serialización XML (``torznab/model/*.kt``).
+"""Torznab models (Caps and Feed) and their XML serialization (``torznab/model/*.kt``).
 
-La API Torznab usa XML en lugar de JSON. Como la salida es sencilla y debe
-controlar el prefijo de espacio de nombres ``torznab:``, se construye el XML a
-mano con escapado correcto (en Kotlin lo hacía la librería ``xmlutil``).
+The Torznab API uses XML instead of JSON. Since the output is simple and needs
+to control the ``torznab:`` namespace prefix, the XML is built by
+hand with correct escaping (in Kotlin the ``xmlutil`` library did it).
 """
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ _XML_DECL = '<?xml version="1.0" encoding="UTF-8"?>'
 
 
 def _attrs(**pairs: object) -> str:
-    """Construye una cadena de atributos XML con escapado."""
+    """Builds a string of XML attributes with escaping."""
     return "".join(f" {k}={quoteattr(str(v))}" for k, v in pairs.items())
 
 
@@ -26,7 +26,7 @@ def _attrs(**pairs: object) -> str:
 
 @dataclass
 class Caps:
-    """Capacidades del indexador Torznab."""
+    """Torznab indexer capabilities."""
 
     server_version: str = "1.0"
     server_title: str = "Amarr"
@@ -75,7 +75,7 @@ class Item:
     enclosure: Enclosure
     attributes: List[TorznabAttribute] = field(default_factory=list)
     pub_date: str = "Sat, 14 Mar 2015 12:42:19 -0400"
-    # URL de detalles del resultado; Sonarr/Radarr la muestran como info link.
+    # Details URL for the result; Sonarr/Radarr show it as an info link.
     comments: str = ""
 
     def to_xml(self) -> str:
@@ -83,7 +83,7 @@ class Item:
             f"<{TORZNAB_PREFIX}:attr{_attrs(name=a.name, value=a.value)}/>"
             for a in self.attributes
         )
-        # <comments> es el elemento que Sonarr/Radarr usan como "info URL".
+        # <comments> is the element Sonarr/Radarr use as the "info URL".
         comments_xml = (
             f"<comments>{escape(self.comments)}</comments>" if self.comments else ""
         )

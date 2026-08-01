@@ -1,19 +1,19 @@
-"""Almacén de categorías en SQLite y su relación con los hashes de fichero.
+"""Category store in SQLite and its relation to file hashes.
 
-Reemplaza la antigua persistencia en ficheros TSV (``categories.tsv`` /
-``hashes.tsv``) por una base de datos **SQLite** (``amarr.db``) en el directorio
-de configuración. Mantiene la interfaz :class:`CategoryStore`, así que el resto
-de la app no cambia.
+Replaces the old TSV-file persistence (``categories.tsv`` /
+``hashes.tsv``) with a **SQLite** database (``amarr.db``) in the configuration
+directory. It keeps the :class:`CategoryStore` interface, so the rest
+of the app doesn't change.
 
-Esquema:
+Schema:
 
-* ``categories(name PRIMARY KEY, save_path)``      — catálogo de categorías.
-* ``file_categories(hash PRIMARY KEY, category)``  — asignación fichero→categoría.
+* ``categories(name PRIMARY KEY, save_path)``      — category catalog.
+* ``file_categories(hash PRIMARY KEY, category)``  — file→category assignment.
 
-Al construirse, si encuentra ficheros TSV de versiones anteriores los **aparta**
-renombrándolos a ``<nombre>.bak`` (no se importan: se arranca con la BD vacía).
-El acceso es seguro entre hilos (cerrojo + conexión compartida con
-``check_same_thread=False``), apto para el threadpool de FastAPI.
+On construction, if it finds TSV files from earlier versions it **sets them
+aside** by renaming them to ``<name>.bak`` (they are not imported: it starts with
+an empty DB). Access is thread-safe (lock + shared connection with
+``check_same_thread=False``), suitable for the FastAPI threadpool.
 """
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ _log = logging.getLogger("amarr.category")
 
 
 class CategoryStore(ABC):
-    """Interfaz del almacén de categorías."""
+    """Category store interface."""
 
     @abstractmethod
     def store(self, category: str, hash: str) -> None:
@@ -54,12 +54,12 @@ class CategoryStore(ABC):
 
 
 _DB_FILE = "amarr.db"
-# Ficheros TSV de versiones anteriores; se apartan a "<nombre>.bak".
+# TSV files from earlier versions; set aside as "<name>.bak".
 _LEGACY_TSV = ("categories.tsv", "hashes.tsv")
 
 
 class SqliteCategoryStore(CategoryStore):
-    """Implementación respaldada por SQLite, segura entre hilos."""
+    """SQLite-backed implementation, thread-safe."""
 
     def __init__(self, store_path: str) -> None:
         os.makedirs(store_path, exist_ok=True)
@@ -82,18 +82,18 @@ class SqliteCategoryStore(CategoryStore):
 
     @staticmethod
     def _archive_legacy_tsv(store_path: str) -> None:
-        # No se importan los datos (se arranca con la BD vacía); solo se apartan
-        # a "<nombre>.bak" como respaldo.
+        # The data is not imported (it starts with an empty DB); the files are
+        # only set aside as "<name>.bak" as a backup.
         for name in _LEGACY_TSV:
             path = os.path.join(store_path, name)
             if os.path.exists(path):
                 try:
                     os.replace(path, path + ".bak")
-                    _log.info("TSV heredado apartado: %s -> %s.bak", name, name)
+                    _log.info("Legacy TSV set aside: %s -> %s.bak", name, name)
                 except OSError:
-                    _log.warning("No se pudo apartar el TSV heredado %s", path)
+                    _log.warning("Could not set aside the legacy TSV %s", path)
 
-    # --- relación hash -> categoría ----------------------------------------
+    # --- hash -> category relation -----------------------------------------
 
     def store(self, category: str, hash: str) -> None:
         with self._lock, self._conn:
@@ -114,7 +114,7 @@ class SqliteCategoryStore(CategoryStore):
         with self._lock, self._conn:
             self._conn.execute("DELETE FROM file_categories WHERE hash = ?", (hash,))
 
-    # --- catálogo de categorías --------------------------------------------
+    # --- category catalog --------------------------------------------------
 
     def add_category(self, category: Category) -> None:
         with self._lock, self._conn:

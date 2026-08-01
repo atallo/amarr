@@ -1,9 +1,9 @@
-"""Respuestas EC y su parser (``jamule/response/*.kt``).
+"""EC responses and their parser (``jamule/response/*.kt``).
 
-``ResponseParser.parse(packet)`` recorre los deserializadores en orden y
-devuelve la primera respuesta cuyo ``can_deserialize`` acepta el paquete, igual
-que en Kotlin. Las respuestas se modelan como dataclasses; las que en Kotlin son
-``data object`` (sin estado) se representan como instancias únicas (singletons).
+``ResponseParser.parse(packet)`` goes through the deserializers in order and
+returns the first response whose ``can_deserialize`` accepts the packet, just
+like in Kotlin. Responses are modeled as dataclasses; those that in Kotlin are
+``data object`` (stateless) are represented as single instances (singletons).
 """
 from __future__ import annotations
 
@@ -35,10 +35,10 @@ from .model import AmuleCategory
 
 
 class Response:
-    """Marcador base para todas las respuestas (sealed interface en Kotlin)."""
+    """Base marker for all responses (sealed interface in Kotlin)."""
 
 
-# --- Respuestas simples -------------------------------------------------------
+# --- Simple responses ---------------------------------------------------------
 
 
 @dataclass
@@ -61,7 +61,7 @@ class AuthSaltResponse(Response):
 
 @dataclass
 class ErrorResponse(Response, Exception):
-    """Error del servidor (EC_OP_FAILED). Se eleva como :class:`ServerException`."""
+    """Server error (EC_OP_FAILED). Raised as :class:`ServerException`."""
 
     server_message: str
 
@@ -84,15 +84,15 @@ class _Singleton(Response):
 
 
 class MiscDataResponse(_Singleton):
-    """EC_OP_MISC_DATA (data object en Kotlin)."""
+    """EC_OP_MISC_DATA (data object in Kotlin)."""
 
 
 class NoopResponse(_Singleton):
-    """EC_OP_NOOP (data object en Kotlin)."""
+    """EC_OP_NOOP (data object in Kotlin)."""
 
 
 class EmptyPreferencesResponse(_Singleton):
-    """EC_OP_SET_PREFERENCES sin tags."""
+    """EC_OP_SET_PREFERENCES with no tags."""
 
 
 @dataclass
@@ -100,7 +100,7 @@ class PrefsCategoriesResponse(Response):
     categories: List[AmuleCategory]
 
 
-# --- Búsqueda -----------------------------------------------------------------
+# --- Search -------------------------------------------------------------------
 
 
 class SearchFileDownloadStatus(Enum):
@@ -135,7 +135,7 @@ class SearchStatusResponse(Response):
     status: float
 
 
-# --- Cola de descargas / ficheros compartidos ---------------------------------
+# --- Download queue / shared files --------------------------------------------
 
 
 @dataclass
@@ -148,7 +148,7 @@ class SharedFilesResponse(Response):
     shared_files: List["SharedFileTag"]  # type: ignore[name-defined]
 
 
-# --- Estadísticas -------------------------------------------------------------
+# --- Statistics ---------------------------------------------------------------
 
 
 class BuddyState(Enum):
@@ -272,7 +272,7 @@ class StatsResponse(Response):
 
 
 def _int_to_ipv4(value: int) -> str:
-    """Convierte un entero de 32 bits (big-endian) en ``a.b.c.d``."""
+    """Converts a 32-bit integer (big-endian) into ``a.b.c.d``."""
     packed = struct.pack(">I", value & 0xFFFFFFFF)
     return ".".join(str(b) for b in packed)
 
@@ -389,7 +389,7 @@ def _parse_search_results(packet: Packet) -> SearchResultsResponse:
 
 def _parse_search_status(packet: Packet) -> SearchStatusResponse:
     num = find_numeric(packet.tags, ECTagName.EC_TAG_SEARCH_STATUS).get_int()
-    # Búsquedas locales devuelven 0xFFFF; Kad devuelve 0xFFFE al terminar.
+    # Local searches return 0xFFFF; Kad returns 0xFFFE when finished.
     status = 1.0 if num in (0xFFFF, 0xFFFE) else num / 100.0
     return SearchStatusResponse(status)
 
@@ -420,10 +420,10 @@ def _parse_prefs_categories(packet: Packet) -> PrefsCategoriesResponse:
 
 
 def parse(packet: Packet) -> Response:
-    """Devuelve la respuesta de dominio correspondiente al paquete.
+    """Returns the domain response corresponding to the packet.
 
-    Importa los tags especiales de forma diferida para evitar un ciclo de
-    importación con :mod:`amarr.jamule.model`.
+    Imports the special tags lazily to avoid an import cycle
+    with :mod:`amarr.jamule.model`.
     """
     from .model import PartFileTag, SharedFileTag
 

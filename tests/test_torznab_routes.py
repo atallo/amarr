@@ -1,4 +1,4 @@
-"""Tests del montaje de rutas Torznab según los motores activos."""
+"""Tests for Torznab route mounting according to the active engines."""
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -27,7 +27,7 @@ def test_active_engines_have_endpoints_inactive_404():
     assert c.get("/indexer/ed2k/api?t=caps").status_code == 200
     assert c.get("/indexer/all/api?t=caps").status_code == 200
     assert c.get("/api?t=caps").status_code == 200  # legacy
-    assert c.get("/indexer/kad/api?t=caps").status_code == 404  # no activo
+    assert c.get("/indexer/kad/api?t=caps").status_code == 404  # not active
 
 
 def test_all_endpoint_aggregates_active_engines():
@@ -64,5 +64,5 @@ def test_search_feed_includes_details_comments():
     )
     r = _client({"ed2k": e1}).get("/indexer/ed2k/api?t=search&q=ubuntu")
     assert r.status_code == 200
-    assert "<comments>" in r.text  # info link para Sonarr/Radarr
+    assert "<comments>" in r.text  # info link for Sonarr/Radarr
     assert "/details?hash=" in r.text

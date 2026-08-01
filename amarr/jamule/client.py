@@ -1,9 +1,9 @@
-"""Cliente de alto nivel para aMule (``jamule/AmuleClient.kt``).
+"""High-level client for aMule (``jamule/AmuleClient.kt``).
 
-En Kotlin cada método devuelve un ``Result<T>``; amarr siempre consume el
-resultado con ``getOrThrow()``. Para mantener la misma semántica de forma
-idiomática en Python, **estos métodos devuelven el valor en caso de éxito y
-lanzan una excepción en caso de fallo** (equivalente exacto a ``getOrThrow()``).
+In Kotlin each method returns a ``Result<T>``; amarr always consumes the
+result with ``getOrThrow()``. To keep the same semantics in an
+idiomatic Python way, **these methods return the value on success and
+raise an exception on failure** (exact equivalent of ``getOrThrow()``).
 """
 from __future__ import annotations
 
@@ -51,7 +51,7 @@ CLIENT_NAME = "jAmule"
 
 
 class AmuleClient:
-    """Interfaz síncrona para hablar con el núcleo de aMule."""
+    """Synchronous interface to talk to the aMule core."""
 
     def __init__(
         self,
@@ -78,7 +78,7 @@ class AmuleClient:
     def reconnect(self) -> None:
         self._conn.reconnect()
 
-    # --- estadísticas -------------------------------------------------------
+    # --- statistics ---------------------------------------------------------
 
     def get_stats(self) -> StatsResponse:
         self._logger.info("Getting stats...")
@@ -87,7 +87,7 @@ class AmuleClient:
             return response
         raise CommunicationException(f"Unable to get stats, got response: {response}")
 
-    # --- búsqueda -----------------------------------------------------------
+    # --- search -------------------------------------------------------------
 
     def search_async(
         self,
@@ -128,11 +128,11 @@ class AmuleClient:
         filters: Optional[SearchFilters] = None,
         timeout: float = 5.0,
     ) -> SearchResultsResponse:
-        """Lanza una búsqueda y espera (bloqueando) a que termine.
+        """Starts a search and waits (blocking) for it to finish.
 
-        Replica la lógica de jaMule: 15 sondeos de 200 ms (el servidor devuelve
-        siempre 100 % si no se espera un poco) y luego sondeo hasta status >= 1
-        o hasta agotar ``timeout`` segundos.
+        Replicates jaMule's logic: 15 polls of 200 ms (the server always returns
+        100 % if you don't wait a bit) and then polls until status >= 1
+        or until ``timeout`` seconds run out.
         """
         self.search_async(query, search_type, filters or SearchFilters())
         for _ in range(15):
@@ -160,10 +160,10 @@ class AmuleClient:
             f"Unable to download search result, got response: {response}"
         )
 
-    # --- descargas ----------------------------------------------------------
+    # --- downloads ----------------------------------------------------------
 
     def download_ed2k_link(self, link: str) -> None:
-        """Añade una descarga a partir de un enlace ``ed2k://|file|...``."""
+        """Adds a download from an ``ed2k://|file|...`` link."""
         self._logger.info("Downloading ed2k link...")
         response = self._conn.send_request(add_link_request(link))
         if isinstance(response, NoopResponse):
@@ -198,7 +198,7 @@ class AmuleClient:
             f"Unable to send download command, got response: {response}"
         )
 
-    # --- categorías ---------------------------------------------------------
+    # --- categories ---------------------------------------------------------
 
     def create_category(self, category: AmuleCategory) -> None:
         response = self._conn.send_request(create_category_request(category))
@@ -221,7 +221,7 @@ class AmuleClient:
         )
 
     def set_file_category(self, file_hash: bytes, category_id: int) -> None:
-        """Asigna categoría a un fichero en descarga (debe estar en la cola)."""
+        """Assigns a category to a downloading file (it must be in the queue)."""
         self._logger.info("Setting file category...")
         download_queue = self.get_download_queue()
         hash_hex = file_hash.hex()

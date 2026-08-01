@@ -1,7 +1,7 @@
-"""Indexador Torznab respaldado por aMule (``torznab/indexer/AmuleIndexer.kt``).
+"""Torznab indexer backed by aMule (``torznab/indexer/AmuleIndexer.kt``).
 
-Traduce las búsquedas de Sonarr/Radarr a búsquedas en un aMule externo (protocolo
-EC) y delega en :class:`Indexer` el filtrado de vídeo y la construcción del feed.
+Translates Sonarr/Radarr searches into searches on an external aMule (EC
+protocol) and delegates video filtering and feed building to :class:`Indexer`.
 """
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from .base import Indexer
 
 
 class AmuleIndexer(Indexer):
-    """Búsqueda a través de un aMule externo por la red kad/eD2k."""
+    """Search through an external aMule over the kad/eD2k network."""
 
     server_title = "Amarr (aMule)"
     cache_key = "amule"

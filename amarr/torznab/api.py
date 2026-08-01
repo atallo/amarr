@@ -1,8 +1,8 @@
-"""Router FastAPI de la API Torznab (``torznab/TorznabApi.kt``).
+"""FastAPI router for the Torznab API (``torznab/TorznabApi.kt``).
 
-Expone los endpoints que Sonarr/Radarr usan como indexador. Devuelve XML.
-La parte de ddunlimitednet del original se omite deliberadamente en esta
-migración.
+Exposes the endpoints Sonarr/Radarr use as an indexer. Returns XML.
+The ddunlimitednet part of the original is deliberately omitted in this
+migration.
 """
 from __future__ import annotations
 
@@ -28,10 +28,10 @@ class _SearchMode(Enum):
 
 
 def build_torznab_router(indexers: dict[str, Indexer]) -> APIRouter:
-    """Monta un endpoint Torznab por motor activo, más ``/indexer/all`` (que
-    agrega todos los activos) y la ruta heredada ``/api``.
+    """Mounts one Torznab endpoint per active engine, plus ``/indexer/all`` (which
+    aggregates all active ones) and the legacy ``/api`` route.
 
-    ``indexers`` mapea el nombre del motor (``amule``/``ed2k``/``kad``) a su
+    ``indexers`` maps the engine name (``amule``/``ed2k``/``kad``) to its
     :class:`Indexer`.
     """
     router = APIRouter()
@@ -40,7 +40,7 @@ def build_torznab_router(indexers: dict[str, Indexer]) -> APIRouter:
         _log.debug("Handling torznab request")
         action = request.query_params.get("t")
         if action is None:
-            # Igual que el original: acción ausente -> error -> HTTP 500.
+            # Same as the original: missing action -> error -> HTTP 500.
             raise ValueError("Missing action")
         if action == "caps":
             _log.debug("Handling caps request")
@@ -56,23 +56,23 @@ def build_torznab_router(indexers: dict[str, Indexer]) -> APIRouter:
         raise ValueError(f"Unknown action: {action}")
 
     def make_endpoint(indexer: Indexer):
-        # Cierre por indexer (evita el late-binding de la variable del bucle).
+        # Closure per indexer (avoids late-binding of the loop variable).
         def endpoint(request: Request) -> FastAPIResponse:
             return handle(request, indexer)
 
         return endpoint
 
-    # Un endpoint por motor activo: /indexer/<nombre>/api
+    # One endpoint per active engine: /indexer/<name>/api
     for name, indexer in indexers.items():
         router.add_api_route(
             f"/indexer/{name}/api", make_endpoint(indexer), methods=["GET"]
         )
 
-    # Endpoint agregador: /indexer/all/api (combina los motores activos).
+    # Aggregator endpoint: /indexer/all/api (combines the active engines).
     aggregate = AggregateIndexer(list(indexers.values()))
     router.add_api_route("/indexer/all/api", make_endpoint(aggregate), methods=["GET"])
 
-    # Ruta heredada: /api -> amule si está activo, si no el agregador.
+    # Legacy route: /api -> amule if active, otherwise the aggregator.
     legacy = indexers.get("amule", aggregate)
     router.add_api_route("/api", make_endpoint(legacy), methods=["GET"])
 
@@ -120,8 +120,8 @@ def _perform_queries(
     if len(queries) == 1:
         return indexer.search(queries[0], offset, limit, cat, base_url)
 
-    # Para varias consultas (TV): se piden todas desde 0 hasta offset+limit,
-    # se unen, se deduplica por URL y se pagina manualmente.
+    # For multiple queries (TV): all are requested from 0 up to offset+limit,
+    # merged, deduplicated by URL and paginated manually.
     raw_limit = offset + limit
     seen = set()
     merged: List = []

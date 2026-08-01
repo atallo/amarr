@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Mapeo de puertos por UPnP-IGD, 100% stdlib (sin miniupnpc ni binarios).
+"""Port mapping via UPnP-IGD, 100% stdlib (no miniupnpc or binaries).
 
-Flujo:
-  1. Descubrir el router (IGD) por SSDP (M-SEARCH multicast a 239.255.255.250:1900).
-  2. Descargar su descripcion XML y localizar el servicio WANIPConnection/WANPPPConnection.
-  3. SOAP AddPortMapping para abrir el puerto hacia esta maquina.
-  4. (opcional) GetExternalIPAddress / DeletePortMapping.
+Flow:
+  1. Discover the router (IGD) via SSDP (M-SEARCH multicast to 239.255.255.250:1900).
+  2. Download its XML description and locate the WANIPConnection/WANPPPConnection service.
+  3. SOAP AddPortMapping to open the port towards this machine.
+  4. (optional) GetExternalIPAddress / DeletePortMapping.
 
-Uso tipico:
+Typical usage:
     m = PortMapping(4662, "TCP")
     if m.open():
-        print("IP publica:", m.public_ip)
+        print("Public IP:", m.public_ip)
         ...
-        m.close()   # elimina el mapeo
+        m.close()   # removes the mapping
 """
 import re
 import socket
@@ -44,7 +44,7 @@ def _local_ip(target="8.8.8.8"):
 
 
 def discover(timeout=3.0):
-    """Devuelve la lista de URLs LOCATION de routers UPnP que responden."""
+    """Returns the list of LOCATION URLs of UPnP routers that respond."""
     tmpl = ("M-SEARCH * HTTP/1.1\r\n"
             "HOST: %s:%d\r\n"
             'MAN: "ssdp:discover"\r\n'
@@ -79,8 +79,8 @@ def discover(timeout=3.0):
 
 
 def _find_service(location):
-    """Descarga la descripcion del IGD y devuelve (control_url, service_type)
-    del primer WANIPConnection/WANPPPConnection encontrado, o None."""
+    """Downloads the IGD description and returns (control_url, service_type)
+    of the first WANIPConnection/WANPPPConnection found, or None."""
     try:
         with urllib.request.urlopen(location, timeout=5) as r:
             xml = r.read()
@@ -128,7 +128,7 @@ def _soap(control_url, service_type, action, args):
 
 
 class PortMapping:
-    """Abre (y cierra) un mapeo de puerto en el router via UPnP."""
+    """Opens (and closes) a port mapping on the router via UPnP."""
 
     def __init__(self, port, proto="TCP", description="ed2k-python"):
         self.port = port
@@ -141,10 +141,10 @@ class PortMapping:
         self.error = None
 
     def open(self, server_host="8.8.8.8"):
-        """Intenta abrir el puerto. Devuelve True si lo consigue."""
+        """Tries to open the port. Returns True on success."""
         locations = discover()
         if not locations:
-            self.error = "no se encontro router UPnP (SSDP sin respuesta)"
+            self.error = "no UPnP router found (no SSDP response)"
             return False
         svc = None
         for loc in locations:
@@ -152,7 +152,7 @@ class PortMapping:
             if svc:
                 break
         if not svc:
-            self.error = "el router no expone WANIPConnection/WANPPPConnection (UPnP desactivado?)"
+            self.error = "the router does not expose WANIPConnection/WANPPPConnection (UPnP disabled?)"
             return False
         self.control_url, self.service_type = svc
         self.local_ip = _local_ip(server_host)
@@ -168,7 +168,7 @@ class PortMapping:
                 ("NewLeaseDuration", "0"),
             ])
         except Exception as e:
-            self.error = "AddPortMapping rechazado por el router: %s" % e
+            self.error = "AddPortMapping rejected by the router: %s" % e
             return False
         try:
             resp = _soap(self.control_url, self.service_type, "GetExternalIPAddress", [])
@@ -180,7 +180,7 @@ class PortMapping:
         return True
 
     def close(self):
-        """Elimina el mapeo creado (best-effort)."""
+        """Removes the created mapping (best-effort)."""
         if not self.control_url:
             return
         try:
@@ -198,8 +198,8 @@ if __name__ == "__main__":
     p = int(sys.argv[1]) if len(sys.argv) > 1 else 4662
     m = PortMapping(p, "TCP")
     if m.open():
-        print("OK: puerto %d abierto. IP local=%s IP publica=%s" % (p, m.local_ip, m.public_ip))
+        print("OK: port %d opened. Local IP=%s Public IP=%s" % (p, m.local_ip, m.public_ip))
         m.close()
-        print("(mapeo eliminado)")
+        print("(mapping removed)")
     else:
-        print("FALLO: %s" % m.error)
+        print("FAILED: %s" % m.error)

@@ -1,14 +1,14 @@
-"""Sesión TCP persistente con un servidor eD2k.
+"""Persistent TCP session with an eD2k server.
 
-Mantiene una única conexión (login **una sola vez**) y la reutiliza entre
-búsquedas, en lugar de conectar/loguear/cerrar por cada consulta — ese login
-repetido es lo que los servidores eD2k penalizan como abuso. Tras
-``idle_seconds`` sin búsquedas la conexión se cierra; la siguiente búsqueda
-reconecta. También reconecta si el servidor corta la conexión inactiva.
+Keeps a single connection (login **only once**) and reuses it between
+searches, instead of connecting/logging in/closing for each query — that
+repeated login is what eD2k servers penalize as abuse. After
+``idle_seconds`` without searches the connection is closed; the next search
+reconnects. It also reconnects if the server drops the idle connection.
 
-Reutiliza las primitivas de la librería (``Ed2kConnection``,
-``parse_search_result``, ``filter_by_query``, ``SearchResult``). Las búsquedas se
-serializan con un cerrojo: una conexión eD2k no admite consultas concurrentes.
+Reuses the library primitives (``Ed2kConnection``,
+``parse_search_result``, ``filter_by_query``, ``SearchResult``). Searches are
+serialized with a lock: an eD2k connection does not allow concurrent queries.
 """
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ ConnFactory = Callable[[], Ed2kConnection]
 
 
 class Ed2kServerSession:
-    """Conexión eD2k persistente y reutilizable, con cierre por inactividad."""
+    """Persistent, reusable eD2k connection, with idle close."""
 
     def __init__(
         self,
@@ -60,7 +60,7 @@ class Ed2kServerSession:
     def _default_factory(self) -> Ed2kConnection:
         return Ed2kConnection(self._host, self._port, timeout=self._timeout)
 
-    # --- API pública --------------------------------------------------------
+    # --- public API ---------------------------------------------------------
 
     def search(self, query: str) -> List[SearchResult]:
         with self._lock:
@@ -68,8 +68,8 @@ class Ed2kServerSession:
             try:
                 pairs = self._search_once(query)
             except (OSError, ConnectionError):
-                # El servidor pudo cortar la conexión inactiva: reconectar 1 vez.
-                self._log.info("[*] Conexión eD2k caída; reconectando...")
+                # The server may have dropped the idle connection: reconnect once.
+                self._log.info("[*] eD2k connection down; reconnecting...")
                 self._close_conn()
                 try:
                     pairs = self._search_once(query)
@@ -85,7 +85,7 @@ class Ed2kServerSession:
             self._cancel_timer()
             self._close_conn()
 
-    # --- internos -----------------------------------------------------------
+    # --- internals ----------------------------------------------------------
 
     def _search_once(self, query: str) -> list:
         self._ensure_connected()
@@ -97,7 +97,7 @@ class Ed2kServerSession:
         if self._conn is not None:
             return
         self._log.info(
-            "[*] Conectando a %s:%d (sesión persistente)...", self._host, self._port
+            "[*] Connecting to %s:%d (persistent session)...", self._host, self._port
         )
         conn = self._conn_factory()
         conn.login(nick=self._nick, client_port=pick_random_port())
@@ -112,12 +112,12 @@ class Ed2kServerSession:
             except socket.timeout:
                 break
             if op == OP_IDCHANGE:
-                self._log.info("[*] Login OK (sesión persistente).")
+                self._log.info("[*] Login OK (persistent session).")
                 return
             if op == OP_REJECT:
-                raise ConnectionError("El servidor rechazó la conexión")
-            # OP_SERVERMESSAGE / OP_SERVERSTATUS y demás: se ignoran.
-        self._log.info("[!] No llegó IDCHANGE; intento buscar de todos modos.")
+                raise ConnectionError("The server rejected the connection")
+            # OP_SERVERMESSAGE / OP_SERVERSTATUS and others: ignored.
+        self._log.info("[!] IDCHANGE did not arrive; searching anyway.")
 
     def _await_results(self, conn: Ed2kConnection) -> list:
         deadline = time.time() + self._timeout
@@ -128,13 +128,13 @@ class Ed2kServerSession:
                 break
             if op == OP_SEARCHRESULT:
                 return parse_search_result(payload)
-            # OP_SERVERMESSAGE y demás: se ignoran.
-        self._log.info("[!] No llegaron resultados (timeout).")
+            # OP_SERVERMESSAGE and others: ignored.
+        self._log.info("[!] No results arrived (timeout).")
         return []
 
     def _after_search(self) -> None:
-        # idle > 0: mantener viva y programar cierre por inactividad.
-        # idle <= 0: cerrar ya (un connect/login por búsqueda, sin persistencia).
+        # idle > 0: keep alive and schedule an idle close.
+        # idle <= 0: close now (one connect/login per search, no persistence).
         if self._idle and self._idle > 0:
             self._schedule_timer()
         else:
@@ -154,7 +154,7 @@ class Ed2kServerSession:
         with self._lock:
             if self._conn is not None:
                 self._log.info(
-                    "[*] Cerrando conexión eD2k inactiva (%ds sin búsquedas).",
+                    "[*] Closing idle eD2k connection (%ds without searches).",
                     self._idle,
                 )
             self._close_conn()

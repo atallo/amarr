@@ -1,18 +1,18 @@
-"""Capa de paquetes del protocolo EC.
+"""EC protocol packet layer.
 
-Reúne el port de:
+Gathers the port of:
 
 * ``jamule/ec/packet/Flags.kt``        -> :class:`Flags`.
-* ``jamule/ec/packet/Packet.kt``       -> :class:`Packet` (+ accesores tipados).
+* ``jamule/ec/packet/Packet.kt``       -> :class:`Packet` (+ typed accessors).
 * ``jamule/ec/packet/PacketWriter.kt`` -> :class:`PacketWriter`.
 * ``jamule/ec/packet/PacketParser.kt`` -> :class:`PacketParser`.
 
-Estructura de un paquete en el cable::
+Structure of a packet on the wire::
 
-    [flags : uint32] [ (si accepts) accept_flags : uint32 ] [longitud : uint32] [payload]
+    [flags : uint32] [ (if accepts) accept_flags : uint32 ] [length : uint32] [payload]
 
-El ``payload`` es ``[opcode : uint8] [nº_tags : uint16] [tags...]`` y puede ir
-comprimido con zlib si el flag correspondiente está activo.
+The ``payload`` is ``[opcode : uint8] [tag_count : uint16] [tags...]`` and may be
+zlib-compressed if the corresponding flag is active.
 """
 
 from __future__ import annotations
@@ -30,14 +30,14 @@ from ..exceptions import InvalidECException
 
 _logger = logging.getLogger(__name__)
 
-# Índices/constantes del payload (PacketParser.kt)
+# Payload indices/constants (PacketParser.kt)
 _INDEX_TAG_COUNT = 1
 _TAG_COUNT_SIZE = enc.LEN_USHORT
 _MAX_DECOMPRESSED_SIZE = 50 * 1024 * 1024
 
 
 class Flags:
-    """Flags de transmisión de un paquete (``Flags.kt``)."""
+    """Transmission flags of a packet (``Flags.kt``)."""
 
     def __init__(
         self,
@@ -52,7 +52,7 @@ class Flags:
         self.accepts = accepts
 
     def to_uint(self) -> int:
-        # El bit 5 (0x20) siempre se activa para distinguir de clientes pre-rc8.
+        # Bit 5 (0x20) is always set to distinguish from pre-rc8 clients.
         flags = 0x20
         if self.zlib_compressed:
             flags |= ECFlag.EC_FLAG_ZLIB.value
@@ -90,7 +90,7 @@ class Flags:
 
 
 class Packet:
-    """Un paquete EC: opcode + lista de tags + flags (``Packet.kt``)."""
+    """An EC packet: opcode + tag list + flags (``Packet.kt``)."""
 
     def __init__(
         self,
@@ -106,7 +106,7 @@ class Packet:
         self.accepts = accepts
         self.id = id
 
-    # Accesores tipados por nombre de tag (Packet.Companion).
+    # Typed accessors by tag name (Packet.Companion).
     def byte(self, name: ECTagName):
         return tagmod.find_byte(self.tags, name)
 
@@ -137,8 +137,8 @@ class Packet:
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Packet):
             return False
-        # ``accepts``/``id`` no se comparan, igual que en los tests de jamule,
-        # que construyen los Packet esperados sin esos campos.
+        # ``accepts``/``id`` are not compared, just like in the jamule tests,
+        # which build the expected Packets without those fields.
         return (
             self.op_code == other.op_code
             and self.tags == other.tags
@@ -150,7 +150,7 @@ class Packet:
 
 
 class PacketWriter:
-    """Serializa un :class:`Packet` a un stream de salida (``PacketWriter.kt``)."""
+    """Serializes a :class:`Packet` to an output stream (``PacketWriter.kt``)."""
 
     def __init__(self, tag_encoder: TagEncoder, logger: Optional[logging.Logger] = None) -> None:
         self._tag_encoder = tag_encoder
@@ -165,7 +165,7 @@ class PacketWriter:
         # Flags.
         output.write(enc.uint_to_bytes(packet.flags.to_uint()))
 
-        # Accept flags, si procede.
+        # Accept flags, if applicable.
         if packet.flags.accepts:
             if packet.accepts is None:
                 raise InvalidECException(
@@ -180,7 +180,7 @@ class PacketWriter:
             else raw_payload
         )
 
-        # Longitud + payload.
+        # Length + payload.
         output.write(enc.uint_to_bytes(len(payload)))
         output.write(payload)
 
@@ -198,7 +198,7 @@ class PacketWriter:
 
 
 class PacketParser:
-    """Parsea un :class:`Packet` desde un stream de entrada (``PacketParser.kt``)."""
+    """Parses a :class:`Packet` from an input stream (``PacketParser.kt``)."""
 
     def __init__(self, tag_parser: TagParser, logger: Optional[logging.Logger] = None) -> None:
         self._tag_parser = tag_parser
@@ -263,15 +263,15 @@ class PacketParser:
             out = io.BytesIO()
             chunk = decompressor.decompress(compressed, _MAX_DECOMPRESSED_SIZE + 1)
             out.write(chunk)
-            # Si queda salida pendiente, supera el límite permitido.
+            # If there is output left over, it exceeds the allowed limit.
             if decompressor.unconsumed_tail:
                 raise InvalidECException(
                     f"Packet decompressed size exceeds limit {_MAX_DECOMPRESSED_SIZE}"
                 )
             out.write(decompressor.flush())
-            # Un flujo zlib truncado/incompleto no marca eof; decompressobj
-            # lo tolera silenciosamente devolviendo bytes vacíos en vez de
-            # lanzar. Lo tratamos como payload malformado.
+            # A truncated/incomplete zlib stream does not mark eof; decompressobj
+            # tolerates it silently by returning empty bytes instead of
+            # raising. We treat it as a malformed payload.
             if not decompressor.eof:
                 raise InvalidECException("Compressed payload is malformed")
             data = out.getvalue()
@@ -289,7 +289,7 @@ class PacketParser:
 
     @staticmethod
     def _read_n(stream: BinaryIO, n: int) -> bytes:
-        """Lee exactamente ``n`` bytes o lanza si el stream se agota antes."""
+        """Reads exactly ``n`` bytes or raises if the stream ends first."""
         data = bytearray()
         while len(data) < n:
             chunk = stream.read(n - len(data))

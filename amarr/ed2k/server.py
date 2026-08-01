@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
-"""Cliente de busqueda en un servidor eD2k (eDonkey2000) sobre TCP.
+"""eD2k (eDonkey2000) server search client over TCP.
 
-API de alto nivel:
+High-level API:
     from ed2k import ServerSearch
     results = ServerSearch("45.82.80.155:5687").search("ubuntu")
     for r in results:
         print(r.name, r.size, r.ed2k_link)
 
-El progreso se emite por logging (logger 'ed2k.server'); por defecto es silencioso.
+Progress is emitted via logging (logger 'ed2k.server'); silent by default.
 """
 import logging
 import os
@@ -26,13 +26,13 @@ log = logging.getLogger("ed2k.server")
 # --- Bytes de protocolo ---
 PR_ED2K = 0xE3
 PR_EMULE = 0xC5
-PR_PACKED = 0xD4  # payload comprimido con zlib
+PR_PACKED = 0xD4  # zlib-compressed payload
 
-# --- Opcodes cliente -> servidor ---
+# --- Opcodes client -> server ---
 OP_LOGINREQUEST = 0x01
 OP_SEARCHREQUEST = 0x16
 
-# --- Opcodes servidor -> cliente ---
+# --- Opcodes server -> client ---
 OP_REJECT = 0x05
 OP_SERVERLIST = 0x32
 OP_SEARCHRESULT = 0x33
@@ -41,27 +41,27 @@ OP_SERVERMESSAGE = 0x38
 OP_IDCHANGE = 0x40
 OP_SERVERIDENT = 0x41
 
-# --- Tags de cliente (login) ---
+# --- Client tags (login) ---
 CT_NAME = 0x01
 CT_PORT = 0x0F
 CT_VERSION = 0x11
 CT_SERVER_FLAGS = 0x20
 CT_EMULE_VERSION = 0xFB
 
-# --- Capacidades anunciadas al servidor ---
+# --- Capabilities advertised to the server ---
 SRVCAP_ZLIB = 0x0001
 SRVCAP_NEWTAGS = 0x0008
 SRVCAP_UNICODE = 0x0010
 SRVCAP_LARGEFILES = 0x0100
 
 EDONKEYVERSION = 0x3C  # 60
-# Version eMule empaquetada (eMule 0.50a): (mjr<<17)|(min<<10)|(upd<<7)
+# Packed eMule version (eMule 0.50a): (mjr<<17)|(min<<10)|(upd<<7)
 EMULE_VERSION = (0 << 17) | (50 << 10) | (1 << 7)
 
 DEFAULT_SERVER = "45.82.80.155:5687"
 
 
-# ======================= Construccion de paquetes =======================
+# ======================= Packet building =======================
 def _old_tag(ttype, name_byte, value_bytes):
     return bytes([ttype]) + struct.pack("<H", 1) + bytes([name_byte]) + value_bytes
 
@@ -76,7 +76,7 @@ def _u32_tag(name_byte, v):
 
 
 def build_search_tree(query):
-    """Serializa el arbol de busqueda eD2k (AND de las palabras)."""
+    """Serializes the eD2k search tree (AND of the words)."""
     words = query.split()
 
     def term(w):
@@ -98,7 +98,7 @@ def read_string(payload, off=0):
 
 
 def parse_search_result(payload):
-    """Parsea un OP_SEARCHRESULT -> lista de (file_hash, tags)."""
+    """Parses an OP_SEARCHRESULT -> list of (file_hash, tags)."""
     off = 0
     count = struct.unpack_from("<I", payload, off)[0]
     off += 4
@@ -118,7 +118,7 @@ def parse_search_result(payload):
     return results
 
 
-# ======================= Conexion de bajo nivel =======================
+# ======================= Low-level connection =======================
 class Ed2kConnection:
     def __init__(self, host, port, timeout=15.0):
         self.host = host
@@ -131,7 +131,7 @@ class Ed2kConnection:
         while len(self.buf) < n:
             chunk = self.sock.recv(65536)
             if not chunk:
-                raise ConnectionError("El servidor cerro la conexion")
+                raise ConnectionError("The server closed the connection")
             self.buf += chunk
         out = bytes(self.buf[:n])
         del self.buf[:n]
@@ -162,10 +162,10 @@ class Ed2kConnection:
 
     def login(self, nick="hydra", client_port=4662):
         h = bytearray(os.urandom(16))
-        h[5] = 14  # marca de cliente eMule
+        h[5] = 14  # eMule client marker
         h[14] = 111
         payload = bytes(h)
-        payload += struct.pack("<I", 0)  # client ID (0 al iniciar)
+        payload += struct.pack("<I", 0)  # client ID (0 at startup)
         payload += struct.pack("<H", client_port)
         flags = SRVCAP_NEWTAGS | SRVCAP_UNICODE | SRVCAP_LARGEFILES | SRVCAP_ZLIB
         tags = [
@@ -188,17 +188,17 @@ def pick_random_port():
 
 
 def start_callback_listener(port):
-    """Escucha en TCP 'port' (0 = puerto libre asignado por el SO) y acepta la
-    conexion de verificacion del servidor (concede HighID si la acepta).
-    Solo da HighID si el puerto es alcanzable (IP publica o UPnP/port-forwarding).
-    Devuelve (stop_event, hits, puerto_real) o None si no pudo escuchar."""
+    """Listens on TCP 'port' (0 = free port assigned by the OS) and accepts the
+    server's verification connection (grants HighID if accepted).
+    Only grants HighID if the port is reachable (public IP or UPnP/port-forwarding).
+    Returns (stop_event, hits, actual_port) or None if it could not listen."""
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     try:
         srv.bind(("0.0.0.0", port))
         srv.listen(5)
     except OSError as e:
-        log.info("[!] No pude escuchar en TCP %d (HighID): %s", port, e)
+        log.info("[!] Could not listen on TCP %d (HighID): %s", port, e)
         srv.close()
         return None
     actual = srv.getsockname()[1]
@@ -225,7 +225,7 @@ def start_callback_listener(port):
         srv.close()
 
     threading.Thread(target=loop, daemon=True).start()
-    log.info("[*] Escuchando en TCP %d para HighID (requiere puerto alcanzable).", actual)
+    log.info("[*] Listening on TCP %d for HighID (requires a reachable port).", actual)
     return stop, hits, actual
 
 
@@ -233,21 +233,21 @@ def _try_upnp(port, host):
     try:
         from . import upnp
         m = upnp.PortMapping(port, "TCP", "ed2k-python")
-        log.info("[*] UPnP: buscando router para abrir el puerto %d...", port)
+        log.info("[*] UPnP: looking for a router to open port %d...", port)
         if m.open(server_host=host):
-            log.info("[*] UPnP: puerto %d abierto. IP publica=%s", port, m.public_ip or "?")
+            log.info("[*] UPnP: port %d opened. Public IP=%s", port, m.public_ip or "?")
             return m
         log.info("[!] UPnP: %s", m.error)
     except Exception as e:
-        log.info("[!] UPnP no disponible: %s", e)
+        log.info("[!] UPnP not available: %s", e)
     return None
 
 
 # ======================= API de alto nivel =======================
 class ServerSearch:
-    """Busqueda por palabra clave en un servidor eD2k.
+    """Keyword search on an eD2k server.
 
-    server: "host:puerto" (def. el servidor de ejemplo).
+    server: "host:port" (default: the example server).
     """
 
     def __init__(self, server=DEFAULT_SERVER, timeout=15.0, nick="hydra"):
@@ -258,14 +258,14 @@ class ServerSearch:
         self.nick = nick
 
     def search(self, query, highid_port=None, use_upnp=True):
-        """Busca 'query' y devuelve una lista de SearchResult (todos; el limite
-        de visualizacion es cosa de quien imprime).
+        """Searches 'query' and returns a list of SearchResult (all of them; the
+        display limit is up to whoever prints them).
 
-        highid_port: None = no intentar HighID (puerto anunciado aleatorio);
-                     0 = HighID con puerto aleatorio; N = HighID con el puerto N.
-        use_upnp: con HighID, intentar abrir el puerto via UPnP.
+        highid_port: None = don't attempt HighID (random advertised port);
+                     0 = HighID with a random port; N = HighID with port N.
+        use_upnp: with HighID, try to open the port via UPnP.
 
-        Lanza ConnectionError si no puede conectar o el servidor rechaza.
+        Raises ConnectionError if it cannot connect or the server rejects.
         """
         listener = mapping = None
         try:
@@ -277,12 +277,12 @@ class ServerSearch:
             else:
                 my_port = pick_random_port()
 
-            log.info("[*] Conectando a %s:%d ...", self.host, self.port)
+            log.info("[*] Connecting to %s:%d ...", self.host, self.port)
             conn = Ed2kConnection(self.host, self.port, timeout=self.timeout)
             try:
                 conn.login(nick=self.nick, client_port=my_port)
                 self._await_login(conn, bool(listener), bool(mapping), my_port)
-                log.info("[*] Buscando: %r", query)
+                log.info("[*] Searching: %r", query)
                 conn.search(query)
                 pairs = self._await_results(conn)
             finally:
@@ -308,21 +308,21 @@ class ServerSearch:
             elif op == OP_SERVERSTATUS:
                 users = struct.unpack_from("<I", payload, 0)[0]
                 files = struct.unpack_from("<I", payload, 4)[0]
-                log.info("[*] Estado: %d usuarios, %d ficheros", users, files)
+                log.info("[*] Status: %d users, %d files", users, files)
             elif op == OP_IDCHANGE:
                 newid = struct.unpack_from("<I", payload, 0)[0]
                 kind = "HighID" if newid >= 0x00FFFFFF else "LowID"
                 log.info("[*] Login OK. ID=%d (%s)", newid, kind)
                 if has_listener and kind == "LowID":
                     if has_mapping:
-                        log.info("    (HighID fallido pese al mapeo UPnP. Posible CG-NAT del ISP.)")
+                        log.info("    (HighID failed despite the UPnP mapping. Possible ISP CG-NAT.)")
                     else:
-                        log.info("    (HighID fallido: el servidor no pudo conectar a tu "
-                                 "puerto %d. Hace falta UPnP o port-forwarding manual.)", my_port)
+                        log.info("    (HighID failed: the server could not connect to your "
+                                 "port %d. UPnP or manual port-forwarding is needed.)", my_port)
                 return
             elif op == OP_REJECT:
-                raise ConnectionError("El servidor rechazo la conexion")
-        log.info("[!] No llego IDCHANGE; intento buscar de todos modos.")
+                raise ConnectionError("The server rejected the connection")
+        log.info("[!] IDCHANGE did not arrive; searching anyway.")
 
     def _await_results(self, conn):
         deadline = time.time() + self.timeout
@@ -335,5 +335,5 @@ class ServerSearch:
                 return parse_search_result(payload)
             elif op == OP_SERVERMESSAGE:
                 log.info("[server] %s", read_string(payload))
-        log.info("[!] No llegaron resultados (timeout).")
+        log.info("[!] No results arrived (timeout).")
         return []
