@@ -15,8 +15,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - run: |
@@ -28,12 +28,20 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+
+      # On version tags, stamp the package version so the built image matches the
+      # tag. The working tree is the Docker build context, so no commit is needed.
+      - name: Set package version from tag
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          VER="${GITHUB_REF_NAME#v}"
+          sed -i -E "s/^version = \"[^\"]*\"/version = \"${VER}\"/" pyproject.toml
 
       # Log in to GitHub Container Registry with the built-in token
       # (no additional secrets need to be configured).
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -42,7 +50,7 @@ jobs:
       # Compute tags: 'latest' and sha on main; semver (1.2.3, 1.2, 1) on tags.
       - name: Compute image metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository_owner }}/amarr
           tags: |
@@ -53,14 +61,14 @@ jobs:
             type=sha,enable={{is_default_branch}}
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       # Build and push for amd64 and arm64 (same as the original Jib config).
       - name: Build and push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           platforms: linux/amd64,linux/arm64
@@ -77,11 +85,18 @@ jobs:
     permissions:
       contents: write  # needed to create the GitHub Release and upload assets
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      # Deterministic source archive of the tagged commit (all tracked files).
+      # Stamp the version from the tag, then archive the tagged sources. The
+      # version bump is a throwaway local commit (never pushed) so that
+      # ``git archive`` includes it in a clean, deterministic zip.
       - name: Build source zip
         run: |
+          VER="${GITHUB_REF_NAME#v}"
+          sed -i -E "s/^version = \"[^\"]*\"/version = \"${VER}\"/" pyproject.toml
+          git -c user.name="github-actions[bot]" \
+              -c user.email="github-actions[bot]@users.noreply.github.com" \
+              commit -am "chore: set version ${VER} for release" >/dev/null
           git archive --format=zip \
             --prefix="amarr-${GITHUB_REF_NAME}/" \
             -o "amarr-${GITHUB_REF_NAME}-src.zip" HEAD

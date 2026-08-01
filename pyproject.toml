@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "amarr"
-version = "0.0.0"  # Managed by the automatic release (see release.yml).
+version = "0.0.0"  # Dev placeholder; stamped from the git tag at release time (see release.yml).
 description = "Connector that lets you use aMule as a download client for Sonarr/Radarr (Python port)."
 readme = "README.md"
 requires-python = ">=3.11"
