@@ -104,8 +104,10 @@ def test_home_documents_all_served_qbittorrent_routes():
         amule, MemoryCategoryStore(), "/finished", {"amule": AmuleIndexer(amule)}
     )
     body = TestClient(app, raise_server_exceptions=False).get("/").text
+    # Derive the served paths from the OpenAPI schema (stable public API):
+    # newer FastAPI no longer flattens included routers into ``app.routes``.
     qbit_paths = sorted(
-        {r.path for r in app.routes if getattr(r, "path", "").startswith("/api/v2/")}
+        p for p in app.openapi()["paths"] if p.startswith("/api/v2/")
     )
     assert qbit_paths, "no /api/v2/* routes were found mounted"
     for path in qbit_paths:
