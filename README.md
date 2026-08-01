@@ -13,8 +13,8 @@ also ported to Python from the
 
 ## Prerequisites
 
-- [aMule](https://www.amule.org/) unning and configured (with the EC connection enabled). 
-Testes with amule 3.0.0 and some older versions.
+- [aMule](https://www.amule.org/) running and configured (with the EC connection enabled).
+  Tested with aMule 3.0.0 and some earlier versions.
 - [Sonarr](https://sonarr.tv/) or [Radarr](https://radarr.video/) running.
 
 **Amarr does not include its own aMule installation**: you need aMule running
@@ -27,11 +27,8 @@ Amarr runs as a Docker container. The image is published on **GitHub
 Container Registry (ghcr.io)**:
 
 ```
-ghcr.io/<owner>/amarr:latest
+ghcr.io/atallo/amarr:latest
 ```
-
-(Replace `<owner>` with the GitHub user or organization where the
-repository lives.)
 
 ### Environment variables
 
@@ -78,7 +75,7 @@ and the Torznab server for Sonarr/Radarr.
 ```yaml
 services:
   amarr:
-    image: ghcr.io/<owner>/amarr:latest
+    image: ghcr.io/atallo/amarr:latest
     container_name: amarr
     environment:
       - AMULE_HOST=aMule

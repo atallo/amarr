@@ -67,3 +67,45 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+  # Only on version tags (v*.*.*): publish a GitHub Release with notes from
+  # CHANGELOG.md and a source zip attached, in addition to the Docker image.
+  github-release:
+    needs: release
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # needed to create the GitHub Release and upload assets
+    steps:
+      - uses: actions/checkout@v4
+
+      # Deterministic source archive of the tagged commit (all tracked files).
+      - name: Build source zip
+        run: |
+          git archive --format=zip \
+            --prefix="amarr-${GITHUB_REF_NAME}/" \
+            -o "amarr-${GITHUB_REF_NAME}-src.zip" HEAD
+
+      # Pull the section for this tag out of CHANGELOG.md as the release notes.
+      - name: Extract release notes
+        run: |
+          awk -v ver="$GITHUB_REF_NAME" '
+            $0 ~ ("^## " ver "([ ]|$)") { found = 1; next }
+            found && /^## / { exit }
+            found { print }
+          ' CHANGELOG.md > release_notes.md
+          if [ ! -s release_notes.md ]; then
+            echo "Release ${GITHUB_REF_NAME}." > release_notes.md
+          fi
+
+      # Create the release with the notes and attach the source zip.
+      # (GitHub also auto-attaches its own "Source code" archives.)
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file release_notes.md \
+            "amarr-${GITHUB_REF_NAME}-src.zip"
